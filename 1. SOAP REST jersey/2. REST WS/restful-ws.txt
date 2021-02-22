@@ -1,0 +1,1072 @@
+	------------------------------------------------
+		REST=REpresentational State Transfer 
+	------------------------------------------------
+
+	Contents:
+		# Introduction to RESTful WS and JAX-RS
+		# http status code
+		# Hello World web service
+		# Annotations
+		# pagination filtering
+		# CRUD operation json /xml response
+		# testing rest api with postman
+		# Converting data b/w xml and Java with JAXB
+		# exception handling, Using WebApplicationException
+		# subresources
+		# Pagination and Filtering
+		# Param annotation, context param
+		# sending status code and location header
+		# HATEOAS
+		# Content Negotiation
+		# converters: ParamConverters, custom Converters
+		# MessageBodyReaders and MessageBodyWriters
+		# implement MessageBodyWriter
+		# Custom Media Types
+		# Writing a JAX-RS client
+		# Implementing Filters		
+		# REST API Authentication Mechanisms, basic auth
+		# Filters and Interceptors
+		# REST with spring mvc
+		# REST with spring boot
+
+
+
+	------------------------------------------
+	Introduction to RESTful WS and JAX-RS
+	-------------------------------------------
+
+	What is REST?
+		# Architectural style which is based on web-standards and the HTTP 
+		protocol
+
+		# REST first described by Roy Fielding in 2000
+		# In a REST based architecture everything is a resource can be accessed by 		
+		http protocol
+
+		# Every resource should support the HTTP common operations
+		# REST allows that resources have different representations, e.g. text, 		
+		xml, json etc
+
+
+
+	Three Fundamental Aspects of the REST Design Pattern
+		1. Resources
+		2. URLs
+		3. Simple Operations
+
+	HTTP method (operations) supported 
+		The PUT, GET, POST and DELETE methods are typical used
+		 in REST based architectures. 
+	
+		GET	==> Reading access of the resource without side-effects 
+			==> The resource is never changed via a GET request
+
+
+		PUT 	==> creates a new resource, must also be idempotent 
+
+		DELETE 	==> removes the resources. 
+
+		POST 	==> updates an existing resource 
+
+
+
+
+	SOAP vs RESTful WS
+
+			REST					SOAP
+		______________________________________________________________________________________
+
+		Expose RESOURCES which				Expose OPERATIOSN which
+		represent DATA					represent LOGIC
+
+
+		use http (get/put/post/delete)			use post from http
+
+		Simple P to P communication			support P to P, Pub sub 									model over http
+
+
+		Support multiple data formates			support only XML and 										attachments
+
+		stateless communication 			stateless/ stateful/ 										asynch communication
+
+
+	Why REST ?
+
+		==> REST can be consumed by any client even a web browser with ajax and JS
+		==> REST is lightweight
+		=> Don't require XML parsing
+		=> Don't require an SOAP header for every messages
+
+	Where REST fits?
+
+	Good for :
+		# Web services
+		# Limited bandwidth(smaller message size)
+		# Limited resources( no xml parsing required)
+		# Exploring data over internet
+		# combining content from various source in an web browser
+
+
+	Restful Web Services Frameworks and APIs  : JAX-RS
+
+			=> The Java API for RESTful Web Services  JAX-RS
+
+			=> Uses annotations to make POJOs and resources available through 								HTTP 
+
+			==> Jersey is a production quality reference implementation of 									JAX-RS API from Sun
+
+			=> Other Vendors: CXF (Apache), RESTEasy(JBoss) and Restlet
+
+
+
+	
+
+----------------------------------------------------------------------------------
+	http status code:
+---------------------------------------------------------------------------------
+
+1XX : informational , ack
+2XX: Success
+	200 OK
+	201 CREATED
+	204 NO CONTENT
+
+3XX: Redirection, ask client to send req somewhere else
+	302: Found
+	304:Not modified
+	307: Temporary redirect
+
+4XX: Client Error, Client make error in request
+	400: bad request
+	401: unauthorized
+	403: forbidden, not right access
+	404: not found
+	415: unsupported media type
+
+5xx: server error, request is valid but server face problme
+	500: internal server error
+	
+
+
+
+
+
+--------------------------------------------------------------------------
+	Hello World JAX-RS
+---------------------------------------------------------------------------
+Archetype org.glassfish.jersey.archetypes:jersey-quickstart-webapp:2.14
+
+	Hello World JAX-RS
+	Steps:
+		1. Create web project , add jar dependencies
+		2. configure in web.xml
+		3. Create POJOs and add annotation 
+		4. Deploy and test
+
+
+
+
+
+	conf in web.xml
+	-----------------
+	<servlet>
+		<servlet-name>Jersey Web Application</servlet-name>
+		<servlet-class>org.glassfish.jersey.servlet.ServletContainer</servlet-class>
+		<init-param>
+			<param-name>jersey.config.server.provider.packages</param-name>
+			<param-value>com.demo</param-value>
+		</init-param>
+		<load-on-startup>1</load-on-startup>
+	</servlet>
+	<servlet-mapping>
+		<servlet-name>Jersey Web Application</servlet-name>
+		<url-pattern>/api/*</url-pattern>
+	</servlet-mapping>
+
+	hello world Resources
+	----------------------
+
+	@Path("/messages")
+	public class MessageResources {
+
+	@GET
+	@Produces(MediaType.TEXT_PLAIN)
+	public String getMessage(){
+		return "hello";
+	}
+	}
+
+
+
+	testing
+	----------
+	api/messages
+
+
+	Some more examples:
+	------------------
+	Example
+	---------
+
+		@Path("/hello")  
+		public class HelloWorldService {  
+   	
+ 		@GET  
+ 		@Path("/{param}")  
+ 		public Response getMessage(@PathParam("param") String message) {  
+  				String output = "Jersey say Hello World!!! : " + message;  
+  				return Response.status(200).entity(output).build();  
+ 			}  
+		}  
+
+	Example:
+
+
+		@Path("/CustomerRest")
+		public class CustomerRest {
+
+		@GET
+		@Produces(MediaType.TEXT_PLAIN)
+
+		public String getCustomerInfo(@QueryParam("customerId")String customerId,@QueryParam("customerName")
+		String customerName)
+		{
+
+			return customerId+" " +customerName+" processed!";
+		}
+		}
+
+		Invoking  /api/CustomerRest?customerId=121&customerName=raj
+
+
+
+--------------------------------------
+	Creating CRUD operations
+--------------------------------------
+	
+
+
+create package: com.messages.repository
+------------------
+public class Book {
+	private int id;
+	private String isbn;
+	private String title;
+	private String author;
+	private double price;
+}
+
+
+
+
+create package: com.books.service
+------------------
+
+
+public interface BookService {
+	public List<Book> getAllBooks();
+	public Book getBookById(int bookId);
+	public Book addBook(Book book);
+	public Book updateBook(Book book);
+	public Book removeBook(int bookId);
+}
+
+@Service
+public class BookServiceImp implements BookService {
+
+	private static Map<Integer, Book> books = new HashMap<Integer, Book>();
+	static {
+		books.put(1, new Book(121, "ABC123", "head first", "katthy", 500.00));
+		books.put(1, new Book(11, "ABU123", "head last", "amit", 400.00));
+	}
+
+	@Override
+	public List<Book> getAllBooks() {
+		return new ArrayList<Book>(books.values());
+	}
+
+	@Override
+	public Book getBookById(int bookId) {
+		return books.get(bookId);
+	}
+
+	@Override
+	public Book addBook(Book book) {
+		book.setId(books.size() + 1);
+		books.put(book.getId(), book);
+		return book;
+	}
+
+	@Override
+	public Book updateBook(Book book) {
+		if (book.getId() <= 0)
+			return null;
+		else
+			books.put(book.getId(), book);
+		return book;
+	}
+
+	@Override
+	public Book removeBook(int bookId) {
+		return books.remove(bookId);
+	}
+
+}
+
+
+
+
+
+
+Now introduce new Resource method
+---------------------------------
+@Produces({"application/xml", "application/json"})
+@Produces(value={MediaType.APPLICATION_JSON,})
+------------------------------------------------------
+
+
+@Path("/books")
+public class BookResources {
+	private BookService dao=new BookServiceImp();
+
+	/*@Produces(MediaType.TEXT_PLAIN)
+	public String hello(){
+		return "hello";
+	}*/
+	
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Book> getAllBooks(){
+		return dao.getAllBooks();
+	}
+	
+	@GET
+	@Path("/{bookId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Book getBookById(@PathParam("bookId") int bookId){
+		return dao.getBookById(bookId);
+	}
+	
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Book addBook(Book book){
+		return dao.addBook(book);
+		
+	}
+	
+	@PUT
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/{bookId}")
+	public Book updateBook(@PathParam("bookId") int bookId, Book book){
+		book.setId(bookId);
+		dao.updateBook(book);
+		return book;
+	}
+	
+	@DELETE
+	@Path("/{bookId}")
+	public void delete(@PathParam("bookId") int bookId){
+		dao.removeBook(bookId);
+	}
+	
+}
+
+
+What is idempotency?
+
+
+
+
+
+
+model
+	dao
+		factory
+
+		exceptions
+
+		book
+				Book.java
+				BookDao.java
+				BookDaoImpl.java
+	
+		author
+				Author.java
+				AuthorDao.java
+				AuthorDaoImpl.java
+		review
+
+	service
+		BL (spring , EJB)*
+			aka brain of ur application
+
+web
+	controllers
+	fitlers
+	listners
+	
+
+
+
+
+
+
+
+-----------------------------------------------------------------
+	Converting data b/w xml and Java with JAXB
+------------------------------------------------------------------
+
+	@Produces({"application/xml", "application/json"})
+
+	for xml restful ws service: use jaxb annotations
+	--------------------------
+
+
+@XmlRootElement(name="book")
+@XmlType(propOrder={"id","isbn","title","author","price"})
+public class Book {
+	private int id;
+	private String isbn;
+	private String title;
+	private String author;
+	private double price;
+}
+
+
+	
+=====================================
+Exception handling with rest api
+=====================================
+
+create an business exception"
+-----------------------------
+
+public class BookNotFoundException extends Exception{
+
+	private static final long serialVersionUID = 1L;
+	
+	public BookNotFoundException(String msg){
+		super(msg);
+	}
+	
+	public BookNotFoundException(String msg, Throwable throwable){
+		super(msg, throwable);
+	}
+	
+
+}
+
+changes service layer;
+--------------------
+public Book getBookById(int bookId)throws BookNotFoundException;
+
+
+@Override
+public Book getBookById(int bookId)throws BookNotFoundException {
+	return books.get(bookId);
+}
+
+
+
+changes rest controller;
+--------------------
+	@GET
+	@Path("/{bookId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Book getBookById(@PathParam("bookId") int bookId) throws BookNotFoundException{
+		//return dao.getBookById(bookId);
+		throw new BookNotFoundException("book not found");
+	}
+	
+
+Exception handling:
+----------------
+@Provider : concept in jax rs
+Aim: handle ex gracefully ... html error page not useful sw layer
+
+1. we have to create a class that is annoted with
+	@Provider (aka listerns in jax rs)
+
+2. We need to imp an interface ie called ExceptionMapper
+	then override its method toResponse and tell what should be responee
+	in case of this exp!
+
+	What is response?
+	response = data + http status code
+
+
+finally create an Exception mapper:
+------------------------------------
+import javax.ws.rs.core.Response;
+import javax.ws.rs.ext.ExceptionMapper;
+import javax.ws.rs.ext.Provider;
+
+@Provider
+public class BookNotFoundExceptionMapper implements ExceptionMapper<BookNotFoundException>{
+
+	@Override
+	public Response toResponse(BookNotFoundException ex) {
+		return Response.status(404).entity(ex.getMessage()).type("text/plain").build();
+
+	}
+
+}
+
+
+@Provider
+public class GenericExceptionMapper implements ExceptionMapper<Throwable> {
+
+	@Override
+	public Response toResponse(Throwable ex) {
+		ErrorMessage errorMessage = new ErrorMessage(ex.getMessage(), 500, "http://abc.com");
+		return Response.status(Status.INTERNAL_SERVER_ERROR)
+				.entity(errorMessage)
+				.build();
+	}
+
+}
+
+
+
+
+
+=========================
+pagination
+===========================
+
+	=> let we need to get list of author born in a particular year?
+
+
+	=> We can not create an new resources as both getAuthorForYear(int year) and getAllAuthors() mapped to same url
+	then we have to modify getAllAuthors() only
+	
+	// this will not work!
+		------------
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Author>  getAuthorForYear(int year){
+		return dao.getAuthorForYear(year);
+	}
+
+
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Author> getAllAuthors(@QueryParam("year") int year){
+		if(year>0)
+			return dao.getAuthorForYear(year);
+		return dao.getAllAuthors();
+	}
+
+
+
+
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Author> getAllAuthors(@QueryParam("year") int year, @QueryParam("start")int start, @QueryParam("end")int end){
+		if(year>0)
+			return dao.getAuthorForYear(year);
+		return dao.getAllAuthors();
+	}
+
+
+==========================================================
+	Param annotations= @MatrixParam("param")
+			   @HeaderParam("authSessionID")
+			   @CookieParam("name") String cookie)
+			   @Context UriInfo uriInfo
+===========================================================
+
+
+@Path("/injectdemo")
+@Consumes(MediaType.TEXT_PLAIN)
+@Produces(MediaType.TEXT_PLAIN)
+public class InjectDemoResource {
+	
+	@GET
+	@Path("annotations")
+	public String getParamsUsingAnnotations(@MatrixParam("param") String matrixParam,
+											@HeaderParam("authSessionID") String header,
+											@CookieParam("name") String cookie) {
+		return "Matrix param: " + matrixParam + " Header param: " + header + " Cookie param: " + cookie;
+	}
+	
+	@GET
+	@Path("context")
+	public String getParamsUsingContext(@Context UriInfo uriInfo, @Context HttpHeaders headers) {
+		
+		String path = uriInfo.getAbsolutePath().toString();
+		String cookies = headers.getCookies().toString();
+		return "Path : " + path + " Cookies: " + cookies;
+	}
+	
+}
+
+//dependncy injection
+===========================================
+sending status code and location header
+===========================================
+
+	
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Book addBook(Book book){
+		return dao.addBook(book);
+		
+	}
+
+	=> We want to have better control on what status code is to transfer to client 
+	=> we want to transfer location header
+
+
+	=> how to send response status?
+	-------------------------------
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response addBook(Book book){
+		Book newBook=dao.addBook(book);
+		return Response.status(Status.CREATED).entity(newBook).build();
+	}
+	
+
+	=> sending back location header?
+	--------------------------------
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Response addBook(Book book, @Context UriInfo uriInfo){
+		Book newBook=dao.addBook(book);
+		String newBookId=String.valueOf(newBook.getId());
+		URI uri=uriInfo.getAbsolutePathBuilder().path(newBookId).build();
+		return Response.created(uri).status(Status.CREATED).entity(newBook).build();
+	}
+	
+
+
+
+=======================================================
+HATEOAS:Hypermedia As The Engine Of Application State
+========================================================
+
+steps:to have a self link
+------
+1. create a link class
+
+///Dont need to mention @xmlrootel
+public class Link {
+	private String link;
+	private String rel;
+}
+
+2. add that to the target pojo
+
+public class Book {
+	private int id;
+	private String isbn;
+	private String title;
+	private double price;
+	
+	private List<Link>links=new ArrayList<Link>();
+	
+	// add an useful method to add a link
+	
+	public void addLink(String url, String rel){
+		Link link2=new Link(url, rel);
+		links.add(link2);
+			
+	}
+
+3. refector resource method to reflect self link
+	/*
+	 * @GET
+	 * 
+	 * @Path("/{bookId}")
+	 * 
+	 * @Produces(MediaType.APPLICATION_JSON) public Book
+	 * getBookById(@PathParam("bookId") int bookId){ return
+	 * dao.getBookById(bookId); }
+	 */
+
+	@GET
+	@Path("/{bookId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Book getBookById(@PathParam("bookId") int bookId,
+			@Context UriInfo uriInfo) {
+		Book book = dao.getBookById(bookId);
+		// how to get url? uriInfo
+		String url = uriInfo.getBaseUriBuilder().path(BookResources.class)
+				.path(Integer.toString(book.getId())).build().toString();
+		book.addLink(url, "self");
+		return book;
+
+	}
+
+
+========================================================
+	# converters: ParamConverters, custom Converters
+========================================================
+
+	=> What is the need of ParamConverters?
+
+	 Jax rs automatically convert String to basic data type automatically
+	 using some default converters
+	
+	 It works only for native datatype, what if i have my own data type we need to
+	 use param converter otherwise we will get ModelValidationException
+
+	 for example my own custom type 
+
+	public class MyValue {
+		private int value;
+
+
+	@Path("paramdemo/{myValue}")
+	public class Hello2 {
+		@GET
+		public String sayHello(@PathParam("myValue")MyValue myValue){
+			return "my value";
+		}
+	}
+
+	ModelValidationException !
+
+	ParamConverter:Interface that need whenever i need to convert some parameter to custom data type
+	-------------
+		T fromString(String value)
+		write logic to convert value to T
+
+	ParamConverterProvider: provide that tell jersy to use this whenever it see MyValue parameter then he need
+	----------------------		to apply ParamConverter...
+
+
+
+	Steps:
+	-------
+
+	1. create a class MyValue that contain an int
+
+		public class MyValue {
+			private int value;
+
+	2. 
+		@Path("paramdemo/{myValue}")
+		public class Hello2 {
+			@GET
+			public String sayHello(@PathParam("myValue")MyValue myValue){
+				return "my value";
+			}
+		}
+
+	3. Write an converter provider
+	@Provider
+	public class MyValueConverterProvider implements ParamConverterProvider {
+
+	@Override
+	public <T> ParamConverter<T> getConverter(Class<T> rawType,
+			Type genericType, Annotation[] annotation) {
+		// TODO Auto-generated method stub
+		if (rawType.getName().equals(MyValue.class.getName())) {
+			return new ParamConverter<T>() {
+
+				@Override
+				public T fromString(String value) {
+					return rawType.cast(new MyValue(Integer.parseInt(value)));
+				}
+
+				@Override
+				public String toString(T myValue) {
+					if (myValue == null)
+						return null;
+					else
+
+						return myValue.toString();
+				}
+			};
+
+		}
+
+		return null;
+	}
+
+	}
+
+	
+	 
+
+========================================================	
+	# MessageBodyReaders and MessageBodyWriters
+	# implement MessageBodyWriter
+========================================================
+
+	=> Convert json to java object and Vice Versa 
+	=> MessageBodyReaders/Writer dealing with body content while .. writer to the body, reader to the body
+		marshiling/unmarshiling of data
+
+	=> steps to create own messageBodyWriter
+
+	1. create resource that return java Date object ( we need custom MBW here)
+
+	@Path("custombodyreader")
+	public class MyResource {
+	
+		@GET
+		@Produces( MediaType.TEXT_PLAIN)
+		public Date testMethod() {
+			return Calendar.getInstance().getTime();
+		}
+		
+	}
+
+	2. write custom MBW
+	@Provider
+	@Produces(MediaType.TEXT_PLAIN)
+	public class DateMessageBodyWriter implements MessageBodyWriter<Date> {
+	
+		@Override
+		public long getSize(Date arg0, Class<?> arg1, Type arg2, Annotation[] arg3,
+				MediaType arg4) {
+			
+			return -1;
+		}
+	
+		@Override
+		public boolean isWriteable(Class<?> type, Type arg1, Annotation[] arg2,
+				MediaType arg3) {
+			return Date.class.isAssignableFrom(type);
+		}
+	
+		@Override
+		public void writeTo(Date date,
+		        Class<?> type,
+		        Type type1,
+		        Annotation[] antns,
+		        MediaType mt,
+		        MultivaluedMap<String, Object> mm,
+		        OutputStream out) throws IOException, WebApplicationException {
+			
+			out.write(date.toString().getBytes());
+			
+		}
+	
+	}
+
+========================================================
+	# Writing a JAX-RS client
+========================================================
+
+gettting an object:
+------------------
+		Client client=ClientBuilder.newClient();
+		
+		Response response=client.target("http://localhost:8080/app3/api/books/1").request().get();
+		
+		Book book=response.readEntity(Book.class);
+		System.out.println(book);
+
+
+
+
+
+		Response response = client
+				.target("http://localhost:8080/app3/api/books/1")
+				.request(MediaType.APPLICATION_JSON).get();
+
+		Book book = response.readEntity(Book.class);
+		System.out.println(book);
+
+getting string:
+----------------
+		String value=client.target("http://localhost:8080/app3/api/books/1").request		(MediaType.APPLICATION_JSON).get		(String.class);
+		System.out.println(value);
+
+
+posting data:
+---------------
+		Client client = ClientBuilder.newClient();
+
+		
+		Book book=new Book(121, "1211", "java head first", 66);
+		
+		Response postResponse=client.target("http://localhost:8080/app3/api/books/").request().post(Entity.json(book));
+		
+		System.out.println(postResponse);
+		 
+		//gettting created object
+		Book createdBook = postResponse.readEntity(Book.class);
+		System.out.println(createdBook);
+		
+		Output
+		------
+		InboundJaxrsResponse{ClientResponse{method=POST, uri=http://localhost:8080/app3/api/books/, status=200, reason=OK}}
+		Book [id=4, isbn=1211, title=java head first, price=66.0]
+
+========================================================
+	# Filters	
+========================================================
+
+	=> fiter aka way to implement cross cutting concer logic in some class
+		and then apply to differnt requests
+	=> request and response filter (ContainerResponseFilter)
+	=> logging, security etc
+
+	Example: we want to have response header with all response contain "powerd-by" 
+
+
+	@Provider
+	public class MyResponseFilter implements ContainerResponseFilter {
+	
+		@Override
+		public void filter(ContainerRequestContext requestContext,
+				ContainerResponseContext responseContext) throws IOException {
+		
+			responseContext.getHeaders().add("powered-by", "rajeev gupta");
+		}
+	
+	}
+
+	Eg: logging both request and response headers
+
+	@Provider
+	public class MyResponseFilter2 implements ContainerRequestFilter{
+	
+		@Override
+		public void filter(ContainerRequestContext ctx) throws IOException {
+			System.out.println(ctx.getHeaders());
+		} 
+	
+	}
+
+
+========================================================
+	# REST API Authentication Mechanisms, basic auth
+========================================================
+
+	=> classical session based auth dont work in rest (statelessness)
+
+	=> We have to use stateless auth mech such as basic auth (basic Access auth)
+		we have to pass username:password each time
+
+	=> username & password pair is passed in header information encoded with base 64
+		passed in username:password formate
+	
+
+	Hello world:
+	------------
+        @Path("secured")
+	public class SecuredResource {
+
+		@GET
+		@Path("message")
+		@Produces(MediaType.TEXT_PLAIN)
+		public String securedMethod() {
+			return "This API is secured";
+		}
+	
+	}
+
+
+
+
+	@Provider
+	public class SecurityFilter implements ContainerRequestFilter {
+	
+		private static final String AUTHORIZATION_HEADER_KEY = "Authorization"; 
+		private static final String AUTHORIZATION_HEADER_PREFIX = "Basic "; 
+		private static final String SECURED_URL_PREFIX = "secured"; 
+
+		@Override
+		public void filter(ContainerRequestContext requestContext) throws IOException {
+			if (requestContext.getUriInfo().getPath().contains(SECURED_URL_PREFIX)) {
+				List<String> authHeader = requestContext.getHeaders().get(AUTHORIZATION_HEADER_KEY);
+				if (authHeader != null && authHeader.size() > 0) {
+					String authToken = authHeader.get(0);
+					authToken = authToken.replaceFirst(AUTHORIZATION_HEADER_PREFIX, "");
+					String decodedString = Base64.decodeAsString(authToken);
+					StringTokenizer tokenizer = new StringTokenizer(decodedString, ":");
+					String username = tokenizer.nextToken();
+					String password = tokenizer.nextToken();
+				
+					if ("user".equals(username) && "password".equals(password)) {
+						return;
+					}
+				
+				}
+				Response unauthorizedStatus = Response
+										    .status(Response.Status.UNAUTHORIZED)
+										    .entity("User cannot access the resource.")
+										    .build();
+					
+				requestContext.abortWith(unauthorizedStatus);
+			
+
+			}
+		
+		}
+
+	}
+
+
+
+
+
+
+
+
+Maven dependencies:
+-------------------
+  <build>
+        <finalName>demorest</finalName>
+        <plugins>
+           			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-compiler-plugin</artifactId>
+				<version>3.1</version>
+				<configuration>
+					<source>1.8</source>
+					<target>1.8</target>
+				</configuration>
+			</plugin>
+        </plugins>
+    </build>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.glassfish.jersey</groupId>
+                <artifactId>jersey-bom</artifactId>
+                <version>${jersey.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
+    <dependencies>
+        <dependency>
+            <groupId>org.glassfish.jersey.containers</groupId>
+            <artifactId>jersey-container-servlet-core</artifactId>
+            <!-- use the following artifactId if you don't need servlet 2.x compatibility -->
+            <!-- artifactId>jersey-container-servlet</artifactId -->
+        </dependency>
+        <!-- uncomment this to get JSON support
+        <dependency>
+            <groupId>org.glassfish.jersey.media</groupId>
+            <artifactId>jersey-media-moxy</artifactId>
+        </dependency>
+        -->
+    </dependencies>
+    <properties>
+        <jersey.version>2.16</jersey.version>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
+
+
+https://github.com/rest-assured/rest-assured/blob/master/examples/rest-assured-itest-java/src/test/java/io/restassured/itest/java/AcceptHeaderITest.java
+
+https://www.slideshare.net/gouthamrv/restful-services-2477903
+https://openweathermap.org/current
+

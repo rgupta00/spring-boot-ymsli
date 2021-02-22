@@ -1,0 +1,9 @@
+@RestController
+public class CustomerController {
+	
+	@RequestMapping("/customer")
+	public String HelloWorld() {
+		return "customer information ....";
+	}
+
+}

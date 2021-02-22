@@ -1,0 +1,1173 @@
+
+
+
+
+Microservices Architecture?
+============================
+	=> Microservices architecture allows to avoid monolith application for 
+	large system. 
+
+	=> It provide loose coupling between collaborating processes which running
+	 independently in different environments with tight cohesion.
+
+
+Adv MS?	:)
+===========
+	=> Smaller code base is easy to maintain.
+	=> Easy to scale as individual component.
+	=> Technology diversity i.e. we can mix libraries, databases, frameworks etc.
+	=> Fault isolation i.e. a process failure should not bring whole system down.
+	=> Better support for smaller and parallel team.
+	=> Independent deployment
+	=> Deployment time reduce
+
+Microservices Challenges	:(
+======================
+
+	=> Difficult to achieve strong consistency across services
+	=> ACID transactions do not span multiple processes.
+	=> Distributed System so hard to debug and trace the issues
+	=> Greater need for end to end testing
+	=> Required cultural changes in across teams like Dev and Ops
+
+What is Spring Cloud?
+=======================
+	=> building blocks for Cloud and Microservices
+	=> provides microservices infrastructure like provide use services
+		 such as Service Discovery, Configuration server and Monitoring.
+	=>  provides several other open source projects like Netflix OSS.
+	=>  provides PaaS like Cloud Foundry, AWS and Heroku.
+	=>  uses Spring Boot style starters
+
+
+Various modules?
+================
+	=>  Cloud Integration
+	=>  Dynamic Reconfiguration
+	=>  Service Discovery
+	=> Client side Load Balancing 
+	......
+
+
+
+Service Discovery 
+================
+	How do services find each other?
+	What happens if we run multiple instances for a service
+	AKA yellow pages*
+
+	Eureka created by Netflix
+
+
+
+Client-side Load Balancing
+=============================
+	Each service typically deployed as multiple instances for 
+	fault tolerance and load sharing. 
+
+	But there is problem how to decide which instance to use?
+
+	How do we decide which service instance to use?
+
+	 Netflix Ribbon, 
+
+	it provide several algorithm for Client-Side Load Balancing. 
+	Spring provide smart RestTemplate for service discovery and load balancing by using 		
+	@LoadBalanced annotation with RestTemplate instance.
+
+
+
+
+Steps:
+============
+	1. Creating Discovery Service (Creating Eureka Discovery Service)
+
+	2. Creating MicroService (the Producer)
+	    Register itself with Discovery Service with logical service.
+
+	3. Create Microservice Consumers find Service registered with Discovery Service
+
+	4. Discovery client using a smart RestTemplate to find microservice.
+
+
+
+
+
+
+Hello world microservice
+---------------------
+coupon_service
+customer_service
+product_service
+order_client
+
+
+
+
+
+
+customer module
+-------------------
+server.port=8081
+server.context-path=/customer
+---------------------
+
+public class Customer {
+	private int id;
+	private String name;
+	private String email;
+}
+
+
+
+public interface CustomerService {
+
+	public List<Customer> getAllCustomers();
+	public Customer getCustomerById(int id);
+}
+
+
+Service
+public class CustomerServiceImp implements CustomerService{
+	private static Map<Integer, Customer> customers = new HashMap<Integer, Customer>();
+	
+	static{
+		customers.put(1, new Customer(1, "amit", "amit@gmail.com"));
+		customers.put(2, new Customer(2, "sumit", "sumit@gmail.com"));
+	}
+	@Override
+	public List<Customer> getAllCustomers() {
+		return new ArrayList<Customer>(customers.values());
+	}
+
+	@Override
+	public Customer getCustomerById(int id) {
+		return customers.get(id);
+	}
+
+}
+
+
+@RestController
+public class CustomerRest {
+
+	@Autowired
+	private CustomerService customerService;
+
+	@RequestMapping(value = "/api/customer", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Collection<Customer>> getAllBooks() {
+		Collection<Customer> customers = customerService.getAllCustomers();
+		return new ResponseEntity<Collection<Customer>>(customers, HttpStatus.OK);
+	}
+
+	@RequestMapping(value = "/api/customer/{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Customer> getAnBook(@PathVariable Integer id) {
+		Customer book = customerService.getCustomerById(id);
+		if (book == null) {
+			return new ResponseEntity<Customer>(HttpStatus.NOT_FOUND);
+		}
+
+		return new ResponseEntity<Customer>(book, HttpStatus.OK);
+	}
+}
+
+server.port=8081
+server.context-path=/customer
+
+
+
+product modules: 
+------------------------------
+server.port=8082
+server.context-path=/product
+--------------------------------
+
+
+public class Product {
+	private int id;
+	private String name;
+	private int price;
+}
+
+
+
+ 
+@RestController
+public class ProductRest {
+
+		@Autowired
+		private ProductService productService;
+
+		@RequestMapping(value = "/api/product", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Collection<Product>> getAllBooks() {
+			Collection<Product> greetings = productService.getAllProducts();
+			return new ResponseEntity<Collection<Product>>(greetings, HttpStatus.OK);
+		}
+
+		@RequestMapping(value = "/api/product/{id}", method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Product> getAnBook(@PathVariable Integer id) {
+			Product product = productService.getProductById(id);
+			if (product == null) {
+				return new ResponseEntity<Product>(HttpStatus.NOT_FOUND);
+			}
+
+			return new ResponseEntity<Product>(product, HttpStatus.OK);
+		}
+}
+
+
+public interface ProductService {
+	public List<Product> getAllProducts();
+	public Product getProductById(int id);
+}
+
+
+@Service
+public class ProductServiceImp implements ProductService {
+	private static Map<Integer, Product> products = new HashMap<Integer, Product>();
+	static {
+		products.put(1, new Product(1, "tv", 56));
+		products.put(2, new Product(1, "laptop", 76));
+
+	}
+
+	@Override
+	public List<Product> getAllProducts() {
+
+		return new ArrayList<Product>(products.values());
+	}
+
+	@Override
+	public Product getProductById(int id) {
+		return products.get(id);
+	}
+
+}
+
+
+
+
+
+server.port=8082
+server.context-path=/product
+
+
+
+
+coupon_service
+--------------------
+server.port=8085
+server.servlet.context-path=/coupon
+----------------------------------
+
+
+public class Coupon {
+	private int id;
+	private String couponCode;
+	private int discount;
+	private Date expiry;
+}
+
+
+public interface CouponService {
+	public Coupon getCouponByCode(String couponCode);
+}
+
+
+
+@Service
+public class CouponServiceImpl implements CouponService {
+	private static Map<String, Coupon> Coupons = new HashMap<>();
+	static {
+		Coupons.put("SUP10",new Coupon(1, "SUP10", 10, new Date()));
+		Coupons.put("SUP20",new Coupon(1, "SUP20", 20, new Date()));
+
+	}
+
+
+	@Override
+	public Coupon getCouponByCode(String couponCode) {
+		return Coupons.get(couponCode);
+	}
+
+}
+
+
+@RestController
+public class CouponRest {
+
+		@Autowired
+		private CouponService couponService;
+
+		@RequestMapping(value = "/api/coupon/{couponcode}", 
+				method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Coupon> getAnCoupon(@PathVariable String couponcode) {
+			Coupon coupon = couponService.getCouponByCode(couponcode);
+			if (coupon==null) {
+				return new ResponseEntity<Coupon>(HttpStatus.NOT_FOUND);
+			}
+
+			return new ResponseEntity<Coupon>(coupon, HttpStatus.OK);
+		}
+}
+
+
+
+
+
+server.port=8085
+server.servlet.context-path=/coupon
+
+
+
+
+
+
+order module
+----------------
+server.port=8080
+server.servlet.context-path=/order
+----------------------------
+
+
+
+@SpringBootApplication
+public class OrderApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(OrderApplication.class, args);
+	}
+	
+	@Bean
+	public RestTemplate restTemplate() {
+	RestTemplate restTemplate = new RestTemplate();
+	return restTemplate;
+	}
+}
+
+
+
+
+public class Order {
+	private long id;
+	private long amount;
+	private Date dateOrder;
+	private Customer customer;
+	private Product product;
+}
+
+
+// http://localhost:8080/order/api/order?pid=1&cid=1
+
+
+@RestController
+public class OrderRest {
+
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@RequestMapping(value = "/api/order", 
+			method = RequestMethod.GET, produces = MediaType.APPLICATION_JSON_VALUE)
+	public ResponseEntity<Order> submitOrder(@RequestParam("pid")int pid, @RequestParam("cid")int cid){
+		Order order = new Order();
+		
+		String couponUrl="http://localhost:8085/coupon/api/coupon/SUP10";
+		
+		String custUrl="http://localhost:8081/customer/api/customer/"+cid;
+		System.out.println(custUrl);
+		String productUrl="http://localhost:8082/product/api/product/"+pid;
+		System.out.println(productUrl);
+		Customer customer = restTemplate.getForObject(custUrl, Customer.class,cid);
+		
+		Product product = restTemplate.getForObject(productUrl, Product.class,pid);
+		
+		Coupon coupon=restTemplate.getForObject(couponUrl, Coupon.class);
+		
+	
+		order.setCustomer(customer);
+		order.setProduct(product);
+		order.setId(1);
+		long amount= (long) product.getPrice()*(100-coupon.getDiscount());
+		
+		order.setAmount(amount);
+		order.setDateOrder(new Date());
+		System.out.println("------------------------------");
+		System.out.println(order);
+		System.out.println(coupon);		
+		System.out.println("------------------------------");
+		return new ResponseEntity<Order>(order, HttpStatus.CREATED);
+	}
+}
+
+server.port=8080
+server.servlet.context-path=/order
+
+
+
+http://localhost:8081/customer/api/customer/1
+
+http://localhost:8082/product/api/product/1
+
+
+http://localhost:8080/order/api/order?pid=1&cid=1
+
+
+
+Now we have 4 services running:
+-------------------------------
+coupon_service	: 8085
+customer_service: 8081
+product_service : 8082
+order_client	: 8080
+
+
+
+
+Spring cloud:
+============
+=> spring cloud config
+=> spring cloud netflix
+	=> netflix eureka
+	=> load balancing, ribbon
+	=> fault tolernace,Hystrix
+	=> zuul
+	
+
+Configuration eureka server
+------------------------------------
+step 1: create spring boot project: eurekaserver and devtool dependencies
+
+step 2: put in properties files
+
+spring.application.name=eureka
+eureka.client.register-with-eureka=false
+eureka.client.fetch-registry=false
+server.port=8761
+
+application.yml:
+--------------
+spring:
+  application:
+    name: eureka
+eureka:
+  client:
+    register-with-eureka: false
+    fetch-registry: false
+server:
+  port: 8761
+
+
+
+
+step 3: apply @EnableEurekaServer
+
+done!
+
+
+
+
+
+Configuration eureka service: customer
+------------------------------------
+step 1: create spring boot project: eurekaclient and devtool, actuator dependencies, web
+
+step 2: put in properties files
+
+spring.application.name=customer-service
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+server.port=8081
+
+
+
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+
+
+step 3: apply @EnableEurekaClient
+
+step 4: create hello world rest controller
+
+
+@RestController
+public class CustomerController {
+	
+	@RequestMapping("/customer")
+	public String HelloWorld() {
+		return "customer information ....";
+	}
+
+}
+
+done!
+
+
+
+
+Configuraation eureka service: product
+------------------------------------
+spring.application.name=product-service
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+server.port=8082
+
+
+
+@RestController
+public class ProductController {
+	
+	@RequestMapping("/product")
+	public String HelloWorld() {
+		return "product information...instance 1";
+	}
+
+}
+
+
+
+
+ service: product running instance 2:
+------------------------------------
+
+
+step 3: apply @EnableEurekaClient
+
+
+
+@RestController
+public class ProductController {
+	
+	@RequestMapping("/product")
+	public String HelloWorld() {
+		return "product information...instance 2";
+	}
+
+}
+
+
+
+
+creating order-service : 
+--------------------------
+dependencies:
+	web, devtools, actu
+	actuator, 
+	eureka-client,
+	 hystrix, 
+	hystrix-dashboard
+
+Client side load balancing: ribbon
+-------------------------
+	=> client side load balancing 
+	=> @LoadBalanced: used to create enhanced rest templete with inbuild load balancing
+	 
+
+
+@EnableEurekaClient
+@SpringBootApplication
+public class OrderApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(OrderApplication.class, args);
+	}
+	@Bean
+	@LoadBalanced
+	public RestTemplate getTemplate() {
+		return new RestTemplate();
+	}
+}
+
+
+
+
+
+step 4:
+@RestController
+public class OrderController {
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@RequestMapping("/order")
+	public String callService() {
+		String customerInfo= 
+				restTemplate.getForEntity("http://localhost:8081/customer", String.class).getBody();
+		String productInfo= 
+				restTemplate.getForEntity("http://localhost:8082/product", String.class).getBody();
+		
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+
+}
+
+
+
+---------------------------
+
+@RestController
+public class OrderController {
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@RequestMapping("/order")
+	public String callService() {
+		String customerInfo= 
+				restTemplate.getForEntity("http://customer-service/customer", String.class).getBody();
+		String productInfo= 
+				restTemplate.getForEntity("http://product-service/product", String.class).getBody();
+		
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+
+}
+
+
+
+spring.application.name=order-service
+eureka.client.service-url.defaultZone=http://localhost:8761/eureka
+server.port=8080
+
+
+
+
+
+
+Hystrix fault tolerance:
+------------------------
+step1 : enable hystrix:
+---------------------------
+
+@EnableEurekaClient
+@SpringBootApplication
+@EnableHystrix
+public class OrderApplication {
+	//.......
+}
+
+
+
+step 2: applying fault handling:
+-----------------------------
+
+@RequestMapping("/order")
+	@HystrixCommand(fallbackMethod = "defaultproduct")
+	public String callService() {
+
+		String customerInfo = restTemplate.getForEntity("http://customer-service/customer", String.class).getBody();
+		String productInfo = restTemplate.getForEntity("http://product-service/product", String.class).getBody();
+
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+
+	public String defaultproduct() {
+		return "default product";
+	}
+
+
+
+
+
+Refactoring hystrix:
+-------------------
+
+@RestController
+public class OrderController {
+	@Autowired
+	private RestTemplate restTemplate;
+
+
+	@RequestMapping("/order")
+	public String callService() {
+		String customerInfo = getCustomerInfo();
+		String productInfo = getProductInfo();
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+
+	public String getProductInfoFallBack() {
+		return "default product";
+	}
+	
+	@HystrixCommand(fallbackMethod = "getProductInfoFallBack")
+	public String getProductInfo() {
+		String productInfo = restTemplate.getForEntity("http://product-service/product", String.class).getBody();
+		return productInfo;
+	}
+	
+	@HystrixCommand(fallbackMethod = "getCustomerInfoFallback")
+	public String getCustomerInfo() {
+		String customerInfo = restTemplate.getForEntity("http://customer-service/customer", String.class).getBody();
+		return customerInfo;
+	}
+
+	public String getCustomerInfoFallback() {
+		return "default customer information";
+	}
+
+	
+}
+
+
+ => this will not work:fallback dont work
+ Why: 
+	Hystrix create a proxy class ie a wrapper on instanc of api class 
+	When we call /order method, proxy comes into picture, spring wrap our method call
+
+	Now we are calling methods inside our api call hence hystrix can not apply aop onto that
+
+
+Sol:
+	We have to create a new class (Spring service) that contains methods with fallback method 
+
+hystrix apply AOP proxy on the meto
+
+
+
+@RestController
+public class OrderController {
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@Autowired
+	private CustomerService customerService;
+	
+	@Autowired
+	private ProductService productService;
+	
+	@RequestMapping("/order")
+	public String callService() {
+		String customerInfo = customerService.getCustomerInfo();
+		String productInfo = productService.getProductInfo();
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+}
+
+
+
+
+@Service
+public class ProductService {
+	
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	public String getProductInfoFallBack() {
+		return "default product";
+	}
+	
+	@HystrixCommand(fallbackMethod = "getProductInfoFallBack")
+	public String getProductInfo() {
+		String productInfo = restTemplate.getForEntity("http://product-service/product", String.class).getBody();
+		return productInfo;
+	}
+}
+
+
+
+
+@Service
+public class CustomerService {
+
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@HystrixCommand(fallbackMethod = "getCustomerInfoFallback")
+	public String getCustomerInfo() {
+		String customerInfo = restTemplate.getForEntity("http://customer-service/customer", String.class).getBody();
+		return customerInfo;
+	}
+
+	public String getCustomerInfoFallback() {
+		return "default customer information";
+	}
+}
+
+
+
+fine tune fault handling::
+----------------------------
+
+	@RequestMapping("/order")
+	@HystrixCommand(fallbackMethod = "defaultproduct", commandProperties =
+	{
+			@HystrixProperty(name = "execution.isolation.thread.timeoutInMilliseconds", value = "3000"),
+	        @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "5"),
+	        @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "5000"),
+	        @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "5000")
+	})
+
+
+
+
+
+management.endpoint.hystrix.stream.enabled=true
+management.endpoints.web.exposure.include=hystrix.stream, info, health
+management.endpoints.web.base-path=/
+
+@EnableHystrixDashboard
+public class OrderApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(OrderApplication.class, args);
+	}
+}
+
+https://stackoverflow.com/questions/49792290/unable-to-connect-to-command-metric-stream-for-hystrix-dashboard-with-spring-clo
+
+
+
+
+
+
+
+
+
+
+
+
+
+spring boot microservice configuration:
+---------------------------------
+=> understanding ms configuration goals
+=> config features in sprng boot
+	value 
+	configprops
+	Actuator
+	spring profiles
+	environment
+=> spring cloud config server
+=> Dynamic configuration
+
+spring boot ms configuration goals
+----------------------------
+	=> externalized
+		property file should be externalized for loose coupling
+	=> environment specfic
+		test, prod, dev, default
+	=> consistent
+		In microservice we have many spring boot project that must have same configuration parameters, we 			should manage them centerally (using git) rather than locally
+	=> version histroy
+	    spring clould provide provision for version history using git
+	=> real time management
+
+
+
+
+
+
+
+
+
+
+
+Spring boot config example:
+----------------------
+
+app.name=democlient
+hi.hello=hello to spring boot ${app.name}
+hi.list=dog, cat, rat
+dbvalues={username:'root', password:'root'}
+server.port=8082
+
+
+@RestController
+public class Hello {
+
+	@Value("${hi.hello:hello world default}")
+	private String hello;
+	@Value("${hi.list}")
+	private List<String> values;
+	
+	//spring expession language
+	@Value("#{${dbvalues}}")
+	private Map<String, String>dbConfig;
+	
+	@GetMapping("/demo")
+	public String sayHello(){
+		return hello+ " : "+ values+ dbConfig;
+	}
+}
+
+
+
+@Configuration property annotation:
+---------------------------------
+	=> handy way to pick parameter related to specific configuration in one go
+
+	step 1:
+	create a class 
+
+	@Configuration
+	@ConfigurationProperties(value="db")
+	public class DbConfig {
+		private String url;
+		private String password;
+		private String username;
+		private String driver;
+		//getter and setters
+
+	step 2: configuration properties in application.properties files
+
+	db.url=jdbc:mysql://localhost:3306/hcl_jdbc?useSSL=false
+	db.username=root
+	db.password=root
+	db.driver=com.mysql.cj.jdbc.Driver
+
+	step 3:
+	Autowire DbConfig in controller and using it....
+
+
+	@RestController
+	public class Hello {
+		@Autowired
+		private DbConfig config;
+		
+		@GetMapping("/demo2")
+		public String sayHello2(){
+			return config.getUrl();
+		}
+	}
+
+
+
+
+
+
+YAML: Yet Another Markup language
+----------------------------------
+	=> better then application.properties and less typing
+	=> replace = with : and rename file with application.yml
+
+app:
+  name: democlient
+hi:
+  hello: hello to spring boot ${app.name}
+  list: dog, cat, rat
+dbvalues: "{username:'root', password:'root'}"
+server:
+  port: 8082
+
+db:
+ url: jdbc:mysql://localhost:3306/hcl_jdbc
+ username: root
+ password: root
+ driver: com.mysql.cj.jdbc.Driver
+
+
+spring boot profile:
+--------------------
+	=> spring profile : test, dev, prod, default
+	=> default mode is by default
+	=> changing profile without changing configuration file :)
+
+	See log for :
+	com.demo.DemoclientApplication           : No active profile set, falling back to default profiles: default
+
+	=> formate for spring boot profile:
+		application-<profile>.yml or properties
+
+	eg: application-test.yml
+
+How to configure profiles:
+---------------------------
+
+step 1:
+
+	@RestController
+	public class Hello {
+	
+		@Value("${hi.hello:hello world default}")
+		private String hello;
+		@GetMapping("/demo")
+		public String sayHello(){
+			return hello;
+		}
+		
+	}
+
+
+step 2: configurte property files for different profiles: test, prod, default
+
+application.yml
+------------
+hi:
+  hello: hello to spring boot
+server:
+  port: 8082
+spring:
+  profiles:
+    active:
+      - test
+
+
+
+application-test.yml
+------------
+hi:
+  hello: hello to spring boot test
+
+
+application-prod.yml
+------------
+hi:
+  hello: hello to spring boot prod
+
+
+step 3: run 
+	java -jar client-1.0.jar  
+		 it will pick default profile
+
+	java -jar client-1.0.jar --spring.profiles.active=prod
+		it will pick prod profile
+
+
+spring cloud config server
+======================
+What spring cloud config try to achive:
+	=> consistent
+		In microservice we have many spring boot project that must have same configuration parameters, we 			should manage them centerally (using git) rather than locally
+	=> version histroy
+	    spring clould provide provision for version history using git
+	=> real time management
+
+
+other alternatives:
+	apache zookeeper
+	ETCD distributed key value store
+	Hashicorp consul
+	spring cloud configuation server
+
+
+configure spring cloud config server:
+------------------------------------
+step 1. create project with spring cloud config dependency
+
+create hello world
+--------------------
+
+@EnableConfigServer
+@SpringBootApplication
+public class ConfigserverApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ConfigserverApplication.class, args);
+	}
+
+}
+
+application.yml
+---------------
+spring:
+  cloud:
+    config:
+      server:
+        git:
+          uri: ${HOME}/democloud
+server:
+  port: 8888
+
+
+
+create a folder in home with name democloud and put configuration
+
+application.yml
+hi:
+  hello: hello to spring boot from config server
+
+step 2: run project and access url
+
+http://localhost:8888/application/default
+
+
+step 3: spring cloud config client app
+---------------------------------
+	1.  put dependency for spring cloud config in client
+	2.  how client come to know about config server?
+		configure config server information in the client
+  cloud:
+    config:
+      uri:
+        - http://localhost:8888
+
+Now run the client it will fetch value from config server
+@RestController
+public class Hello {
+
+	@Value("${hi.hello:hello world default}")
+	private String hello;
+
+	@GetMapping("/demo")
+	public String sayHello() {
+		return hello;
+	}
+}
+
+
+ 3. what if value of property file changed to server
+	if we update property in configuration file and refersh config server url 
+	update is visible but not for config client without restart :(
+
+ 4. we have to configure actuator for this
+
+	Dynamic config with spring boot?
+	------------------------------
+	=> We have to configure spring actuator and then we will get an hook ie called
+		http://localhost:8082/actuator/refresh 
+	must be tried with post so that client get updated value without need to restarted !
+
+	step 1: update client
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+	step 2: must apply annotation @RefreshScope
+
+	@RefreshScope
+	@RestController
+	public class Hello {
+
+		@Value("${hi.hello:hello world default}")
+		private String hello;
+
+		@GetMapping("/demo")
+		public String sayHello() {
+			return hello;
+		}
+	}
+
+	step 3: update config and apply git update
+
+	step 4: hit http://localhost:8082/actuator/refresh 
+	 client get updated value without need to restarted !
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

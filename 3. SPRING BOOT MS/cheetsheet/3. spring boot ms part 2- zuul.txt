@@ -1,0 +1,417 @@
+zuul :
+--------
+
+Zuul:Api gateway
+---------------
+Need of api gateway?
+-----------------
+
+Separation between clients and microservices
+Simplified clients
+Any change in location of microservices is not going to affect the clients
+Optimal API for each client as per requirement
+
+
+zuul hello world:
+----------------
+
+3 applicatations:
+------------------
+product-service
+customer-service
+order-service
+
+
+product-service:
+---------------
+
+@SpringBootApplication
+public class ProductApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ProductApplication.class, args);
+	}
+
+}
+
+@RestController
+public class ProductController {	
+	@RequestMapping("/product")
+	public String HelloWorld() {
+		return "product information...instance 1";
+	}
+
+}
+
+spring.application.name=product-service
+server.port=8082
+
+
+
+customer-service
+-----------------
+@SpringBootApplication
+public class CustomerApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(CustomerApplication.class, args);
+	}
+}
+
+
+@RestController
+public class CustomerController {
+	@RequestMapping("/customer")
+	public String HelloWorld() {
+		return "customer information ....";
+	}
+
+}
+
+
+spring.application.name=customer-service
+server.port=8081
+
+
+
+order-service
+------------
+@SpringBootApplication
+public class OrderApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(OrderApplication.class, args);
+	}
+	@Bean
+	public RestTemplate getTemplate() {
+		return new RestTemplate();
+	}
+}
+
+
+@RestController
+public class OrderController {
+	@Autowired
+	private RestTemplate restTemplate;
+	
+	@RequestMapping("/order")
+	public String callService() {
+		String customerInfo= 
+				restTemplate.getForEntity("http://localhost:8081/customer", String.class).getBody();
+		String productInfo= 
+				restTemplate.getForEntity("http://localhost:8082/product", String.class).getBody();
+		
+		return customerInfo.concat(" ").concat(productInfo);
+	}
+
+}
+
+
+spring.application.name=order-service
+server.port=8080
+
+
+Now test:
+----------
+http://localhost:8082/product
+http://localhost:8081/customer
+http://localhost:8080/order
+
+
+Now configure zuul proxy server:
+---------------------------------
+api-gateway: dependencies: web, zuul, devtools, actuator
+
+
+@EnableZuulProxy
+@SpringBootApplication
+public class GatewayApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(GatewayApplication.class, args);
+	}
+
+}
+
+application.yml:
+---------------
+
+server:
+  port: 8100
+spring:
+  application:
+    name: api-gateway
+zuul:
+  routes:
+    customer-service:
+     url: http://localhost:8081
+    product-service:
+     url: http://localhost:8082
+    order-service:
+     url: http://localhost:8080
+
+
+
+
+Now run custoemr-service with zuul proxy:
+------------------------------
+http://localhost:8100/customer-service/customer
+http://localhost:8100/product-service/product
+http://localhost:8100/order-service/order
+
+
+
+
+
+zuul filters:
+-------------
+pre, post ,error filtes
+
+
+pre filter:
+------------
+
+@Configuration
+public class PreFilter extends ZuulFilter{
+	private static Logger log = LoggerFactory.getLogger(PreFilter.class);
+
+    @Override
+    public String filterType() {
+        return "pre";
+    }
+
+    @Override
+    public int filterOrder() {
+        return 1;
+    }
+
+    @Override
+    public boolean shouldFilter() {
+        return true;
+    }
+
+    @Override
+    public Object run() {
+        RequestContext ctx = RequestContext.getCurrentContext();
+        HttpServletRequest request = ctx.getRequest();
+        log.info("Request method = {}, url = {}", request.getMethod(), request.getRequestURL().toString());
+        return null;
+    }
+}
+
+
+post filter:
+-------------
+@Configuration
+public class Postfilter extends ZuulFilter {
+    private static Logger log = LoggerFactory.getLogger(Postfilter.class);
+
+    @Override
+    public String filterType() {
+        return "post";
+    }
+
+    @Override
+    public int filterOrder() {
+        return 1;
+    }
+
+    @Override
+    public boolean shouldFilter() {
+        return true;
+    }
+
+    @Override
+    public Object run() {
+        RequestContext ctx = RequestContext.getCurrentContext();
+
+        HttpServletResponse response = ctx.getResponse();
+        //ctx.getResponse().setStatus(500);
+        log.info("Response  Status= {}", response.getStatus());
+
+        try (InputStream is = ctx.getResponseDataStream()) {
+            String respData = CharStreams.toString(new InputStreamReader(is, CharEncoding.UTF_8));
+            log.info("Response  Data = {}", respData);
+            ctx.setResponseBody(respData);
+        } catch (IOException ioe) {
+            ioe.printStackTrace();
+        }
+        return null;
+    }
+}
+
+
+
+error filter:
+----------
+
+@Configuration
+public class Errorfilter extends ZuulFilter {
+    private static Logger log = LoggerFactory.getLogger(Errorfilter.class);
+    @Override
+    public String filterType() {
+        return "error";
+    }
+    @Override
+    public int filterOrder() {
+        return 1;
+    }
+    @Override
+    public boolean shouldFilter() {
+        return true;
+    }
+    @Override
+    public Object run() {
+        RequestContext ctx = RequestContext.getCurrentContext();
+
+        String response = ctx.getResponseBody();
+        log.info("Error occurred, Response  = {}, ", response);
+        return null;
+    }
+}
+
+
+
+route filter:
+------------
+
+@Configuration
+public class Routefilter extends ZuulFilter {
+    private static Logger log = LoggerFactory.getLogger(Routefilter.class);
+    @Override
+    public String filterType() {
+        return "route";
+    }
+    @Override
+    public int filterOrder() {
+        return 1;
+    }
+    @Override
+    public boolean shouldFilter() {
+        return true;
+    }
+    @Override
+    public Object run() {
+
+        log.info("Inside route filter..");
+        return null;
+    }
+}
+
+
+Management Endpoints:
+---------------------
+Netflix Zuul Actuator endpoints 
+
+Enable endpoints:
+---------------
+management: 
+  endpoints: 
+    web: 
+      exposure: 
+        include: '*'
+
+
+we are intrested in filters and rountes
+
+http://localhost:8100/actuator/filters
+http://localhost:8100/actuator/routes
+
+
+ref:
+	https://cloud.spring.io/spring-cloud-netflix/multi/multi__router_and_filter_zuul.html#_management_endpoints
+
+
+
+Zuul configure timeout:
+-------------------------
+if our service is taking too much time we can configure zuul time out and it throw some exceptions
+
+
+
+@RestController
+public class ProductController {	
+	@RequestMapping("/product")
+	public String HelloWorld() {
+		try {
+			Thread.sleep(20000);
+		}catch(InterruptedException ex) {
+			ex.printStackTrace();
+		}
+		return "product information...instance 1";
+	}
+
+Now we will configure timeout for whole project using zuul configuration:
+-------------------------------------------------------------------------
+
+zuul:
+  routes:
+    customer-service:
+     url: http://localhost:8081
+    product-service:
+     url: http://localhost:8082
+    order-service:
+     url: http://localhost:8080
+  host:
+    connect-timeout-millis: 2000
+    socket-timeout-millis: 5000
+
+
+
+Zuul + security on api gateway level:
+----------------------------------------
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-security</artifactId>
+		</dependency>
+
+
+@Configuration
+public class SecurityConfig extends WebSecurityConfigurerAdapter {
+
+    @Override
+    protected void configure(HttpSecurity http) throws Exception {
+        http. authorizeRequests().
+                antMatchers("/order-service/**").
+                authenticated().
+                anyRequest().
+                permitAll();
+    }
+}
+
+
+
+
+
+
+
+
+
+
+Hello world with eureka server
+----------------------------
+server:
+  port: 8100
+spring:
+  application:
+    name: api-gateway
+eureka:
+  client:
+    serviceUrl:
+      defaultZone: http://localhost:8761/eureka/
+
+
+
+@EnableZuulProxy
+@SpringBootApplication
+@EnableEurekaClient
+public class ApiGatwayApplication {
+
+	public static void main(String[] args) {
+		SpringApplication.run(ApiGatwayApplication.class, args);
+	}
+
+}
+
+
+http://localhost:8100/order-service/order

@@ -1,0 +1,1524 @@
+
+Spring boot getting started
+___________________________
+
+Agenda:
+__________
+
+ day 1:
+_________
+ Advantage of spring boot , configuration spring boot
+ Spring boot hello world, REST service
+ Spring jpa, spring data
+ Spring jdbc, spring transaction mgt
+ Book store curd REST service
+ Understand Spring boot auto config
+ Using ResponseEntity & http status code
+ Handling BookNotFoundException
+ JSR 303 validation
+
+ day 2:
+________
+ hateoas
+ Swagger Documentation
+ Monitoring APIs with Spring Boot Actuator
+ Versioning RESTful Services 
+ Enable cacheing
+ schedule processes
+
+day 3:
+_______
+ Spring Security
+ Spring boot microservice
+
+........
+spring mvc
+HATEOAS
+spring jdbc
+spring jpa
+mysql
+security
+devtools
+Actuator
+
+
+History Spring boot : Summarized:
+_________________________________
+
+1.0.0: Support from Java 6 - 8
+1.3.0: Support from Java 7 - 8, additional configuration for Java 6 required
+2.0.0: Support from Java 8 - ...
+
+
+
+
+
+	Advantage of spring boot , configuration spring boot
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+ 	Advantage of spring boot
+	_____________________
+
+	=> Auto-Configuration 
+
+	=> Dependency Management
+
+	=> Advanced Externalized Configuration
+		bean can be configured through application.properties file 
+		without touching java or xml config
+
+	=> Production support
+		We get health checking, application and jvm metrics, 
+		jmx via http and a few more things for free
+
+	=> Runnable Jars
+		 We can package your application as a runnable jar with embedded tomcat
+		 included so it presents a self-contained deployment unit
+
+	=> Microservice
+
+
+	configuration spring boot
+	____________________
+
+	create spring boot project: choose web, jpa, derby....
+
+	//Configuration, @EnableAutoConfiguration and @ComponentScan
+
+
+
+	@SpringBootApplication
+	public class Application {
+	
+	  public static void main(String[] args) {
+	    ApplicationContext ctx = SpringApplication.run(Application.class, args);
+	
+	    System.out.println("Let's inspect the beans provided by Spring Boot:");
+	
+	    String[] beanNames = ctx.getBeanDefinitionNames();
+	    Arrays.sort(beanNames);
+	    for (String beanName : beanNames) {
+	        System.out.println(beanName);
+	    }
+	  }
+	
+	}
+
+	spring-boot:run
+
+
+	Spring boot ApplicationRunner and CommandLineRunner:
+	----------------------------------------
+
+	@Component
+	public class ApplicationRunnerBean implements ApplicationRunner {
+	@Override
+	public void run(ApplicationArguments args) throws Exception {
+		String collectStr = Arrays.stream(args.getSourceArgs()).collect(Collectors.joining(","));
+		System.out.println(collectStr);
+	}
+
+	}
+
+	Hello world:
+	-----------
+
+	
+	@RestController
+	public class HelloRestController {
+		
+		@RequestMapping("/hello")
+		public String hello(){
+			return "spring boot";
+		}
+           }  
+	
+
+
+	public class Book {
+		private Integer id;
+		private String title;
+		private String author;
+		private Double price;
+		private String pubName;
+		private Date pubDate;
+	}
+
+
+	
+	
+	@GetMapping("book/{id}")
+	public Book getBookById(@PathVariable(name = "id")int id) {
+		return new Book(id, "java", "raj", 500.00,"bpb", new Date());
+	}
+
+
+
+
+
+	application.properties
+	________________--
+	server.servlet.context-path=/bookapp
+	server.port=8080
+
+	        <dependency>
+			<groupId>org.aspectj</groupId>
+			<artifactId>aspectjweaver</artifactId>
+		</dependency>
+
+
+
+Running spring boot :
+____________________
+
+	eclipse plugin
+	spring initilizer
+	spring cli
+
+	https://www.journaldev.com/8195/spring-boot-cli-setup-and-helloworld-example
+
+	spring init -n=jpa-one-to-one-demo -d=web,jpa,mysql --package-name=com.example.jpa demoproj
+
+
+Spring boot config
+____________________
+
+server.servlet.context-path=/bookapp
+server.port=8080
+
+spring.datasource.url=jdbc:mysql://localhost:3306/hcl_jdbc?useSSL=false
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+logging.level.org.springframework.web: DEBUG
+logging.level.org.hibernate: ERROR
+spring.jpa.show-sql=true
+
+
+
+Note:Spring boot config: EnableAutoConfiguration
+________________________________________________
+
+disable all database related auto configuration in spring-boot
+__________________________________________________________
+
+@Configuration
+@EnableAutoConfiguration(exclude = {DataSourceAutoConfiguration.class, DataSourceTransactionManagerAutoConfiguration.class, HibernateJpaAutoConfiguration.class})
+@Profile ("client_app_profile_name")
+public class ClientAppConfiguration {
+    //it can be left blank
+}
+
+
+	Spring jpa, spring data
+	_______________________
+
+	@Entity
+	@Table(name="book_table")
+	public class Book {
+		@Id @GeneratedValue(strategy=GenerationType.IDENTITY)
+		private Integer id;
+		
+		//@Size(min=2, message="title should have atleast 4 characters")
+		private String title;
+		private String author;
+		private double price;
+		private String pubName;
+		@Temporal(TemporalType.DATE)
+		private Date pubDate;
+
+
+
+
+
+
+	@Repository
+	public interface BookRepo extends CrudRepository<Book, Integer> {
+		public List<Book>findByTitle(String title);
+	}
+
+
+
+	Step 2: Service layer
+	______________________
+
+	public interface BookService {
+		public List<Book> getAllBooks();
+		public Book getBookById(int id);
+		public Book addBook(Book book);
+		public List<Book> getBookByTitle(String title);
+		public Book updateBook(int bookId, Book book);
+		public Book deleteBook(int bookId);
+		
+	}
+
+	@Service
+	@Transactional
+	public class BookServiceImpl implements BookService{
+		@Autowired
+		private BookRepo bookRepo;
+		
+		@Override
+		public List<Book> getAllBooks() {
+			return (List<Book>) bookRepo.findAll();
+		}
+		
+		@Override
+		public Book getBookById(int id) {
+			return bookRepo.findById(id).orElseThrow(BookNotFoundException::new);
+		}
+		
+		@Override
+		public Book addBook(Book book) {
+			return bookRepo.save(book);
+		}
+		
+		@Override
+		public  List<Book> getBookByTitle(String title) {
+			return bookRepo.findByTitle(title);
+		}
+		
+		@Override
+		public Book updateBook(int bookId, Book book) {
+			Book bookToUpdated=getBookById(bookId);
+			bookToUpdated.setPrice(book.getPrice());
+			
+			return bookRepo.save(bookToUpdated);
+		}
+		
+		@Override
+		public Book deleteBook(int bookId) {
+			Book bookToBeDeleted=getBookById(bookId);
+			bookRepo.delete(bookToBeDeleted);
+			return bookToBeDeleted;
+		}
+	}
+
+
+
+	
+	public class BookNotFoundException extends RuntimeException{
+		private static final long serialVersionUID = 4351688402749113855L;
+
+	}
+
+
+	Book store curd REST service  :Rest controller
+	__________________________________
+
+	CRUD  application:
+			
+		@RestController
+		public class BookRestController {
+		
+			//using response entity
+			
+			private BookService bookService;
+			
+			@Autowired
+			public BookRestController(BookService bookService) {
+				this.bookService = bookService;
+			}
+		
+			@GetMapping("book")
+			public List<Book> getAllBooks() {
+				return bookService.getAllBooks();
+			}
+			
+			@GetMapping("book/{id}")
+			public Book getBookById(@PathVariable(name = "id")int id) {
+				return bookService.getBookById(id);
+			}
+			
+			@PostMapping("book")
+			public Book addBook(@RequestBody Book book) {
+				return bookService.addBook(book);
+			}
+			
+			@PutMapping("book/{id}")
+			public Book updateBook(@PathVariable(name = "id")int id,@RequestBody Book book ) {
+				return bookService.updateBook(id, book);
+			}
+			
+			@DeleteMapping("book/{id}")
+			public Book delBook(@PathVariable(name = "id")int id) {
+				return bookService.deleteBook(id);
+			}
+			
+		}
+
+
+	Using ResponseEntity & http status code 
+ 	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	=> use ResponseEntity =wrap response object + httpstatus code + exceptional cases
+
+	// @RestController=@Controller + @ResponseBody
+
+	@RestController
+	@RequestMapping(path="api")
+	public class BookRestController {
+	
+		@Autowired
+		private BookService bookService;
+		
+		@GetMapping(path="book", produces=MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<List<Book> > getAllBooks(){
+			return new ResponseEntity<List<Book>>(bookService.getAllBooks(), HttpStatus.OK);
+		}
+		
+		@GetMapping(path="book/{id}", produces=MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Book> getBookById(@PathVariable(name="id")int id){
+			return new ResponseEntity<Book>(bookService.getBookById(id), HttpStatus.OK);
+		}
+		
+		
+		@PostMapping(path="book", produces=MediaType.APPLICATION_JSON_VALUE
+				,consumes=MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Book> addBook(@Valid  @RequestBody Book book){
+			return new ResponseEntity<Book>(bookService.addBook(book), HttpStatus.CREATED);
+		}
+		
+		
+		@PutMapping(path="book/{id}", produces=MediaType.APPLICATION_JSON_VALUE
+				,consumes=MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Book> updateBook(@PathVariable(name="id")int id,  @RequestBody Book book){
+			return new ResponseEntity<Book>(bookService.updateBook(id, book), HttpStatus.CREATED);
+		}
+		
+		
+		@DeleteMapping(path="book/{id}", produces=MediaType.APPLICATION_JSON_VALUE)
+		public ResponseEntity<Void> deleteBook(@PathVariable(name="id")int id){
+			 bookService.deleteBook(id);
+			 return new ResponseEntity<Void>(HttpStatus.NO_CONTENT);
+		}
+		
+		
+	}
+
+
+
+
+
+
+
+
+
+
+	Spring boot error handling
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	@ResponseStatus(code=HttpStatus.NOT_FOUND)
+	public class BookNotFoundException extends RuntimeException{
+		private static final long serialVersionUID = 4351688402749113855L;
+
+	}
+
+
+
+
+	@ControllerAdvice
+	@RestController
+	public class ExceptionHandlerController extends ResponseEntityExceptionHandler{
+		
+		@ExceptionHandler(Exception.class)
+		public final ResponseEntity<Object> handleAllExceptions(Exception ex,
+				WebRequest request) {
+			ErrorDetails errorDetails = new ErrorDetails(new Date(),
+					ex.getMessage(), request.getDescription(false));
+			return new ResponseEntity<Object>(errorDetails,HttpStatus.INTERNAL_SERVER_ERROR);
+		}
+	
+		@ExceptionHandler(BookNotFoundException.class)
+		public ResponseEntity<Object> handleBookNotFoundEx(
+				BookNotFoundException ex, WebRequest req) {
+			ErrorDetails details = new ErrorDetails(new Date(), "book not found",
+					req.getDescription(false));
+			return new ResponseEntity<Object>(details, HttpStatus.NOT_FOUND);
+		}
+		
+		
+	
+	}
+
+
+	//Error handling class
+
+	public class ErrorDetails {
+		private Date timestamp;
+		  private String message;
+		  private String details;
+	
+		
+
+
+
+
+
+	Step 7: JSR 303 validation
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	step 0:Starting with Boot 2.3, we also need to explicitly add the spring-boot-starter-validation dependency:
+	
+	<dependency> 
+	    	<groupId>org.springframework.boot</groupId> 
+    		<artifactId>spring-boot-starter-validation</artifactId> 
+	</dependency>
+
+
+	step 1: apply jsr 303 annotation on pojo
+
+	public class Book {
+		private int id;
+		private String isbn;
+		@Size(min=2, message="title should have atleast 4 characters")
+
+
+	step 2: 
+	public ResponseEntity<Book> createBook(@Valid @RequestBody Book book) {
+
+	step 3:
+	@Override
+		protected ResponseEntity<Object> handleMethodArgumentNotValid			   (MethodArgumentNotValidException ex,
+		    HttpHeaders headers, HttpStatus status, WebRequest request) {
+		  ErrorDetails errorDetails = new ErrorDetails(new Date(), "Validation Failed",
+		      ex.getBindingResult().toString());
+		  return new ResponseEntity<Object>(errorDetails, HttpStatus.BAD_REQUEST);
+		} 
+
+
+
+
+
+	Step 8: hateoas
+	~~~~~~~~~~~~~~~
+
+	HATEOAS- Hypertext as the engine of Application state
+	Use link in the application state ( Response data)
+	
+	Advantage:
+	the client can have a single entry point to the application and att the further action can be taken 
+	based on the links in the response data
+	Reduce dependency between client and service, so that the server can make changes to its URI 
+	without breaking the client side code
+
+	Implementation:
+		RepresentationModel
+		WebMvcLinkBuilder
+		Link
+
+
+
+step 1: put hateoas dependencies
+
+step 2: enable static improt:
+
+import static org.springframework.hateoas.server.mvc.WebMvcLinkBuilder.*;
+
+
+step 3: change POJO class:
+
+public class Book extends RepresentationModel<Book>{
+}
+
+
+step 4: get an book:
+----------------------
+@GetMapping(path = "/book/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+	public EntityModel<Book> getBookById2(@PathVariable(name = "id") int id) {
+		Link link=linkTo(methodOn(BookRestController.class).getBookById2(id)).withSelfRel();
+		
+		Book book = bookService.getBookById(id);
+		book.add(link);
+		
+		return EntityModel.of(book);
+	}
+
+
+step 5: get all books:
+----------------------
+	// get all the books
+	@GetMapping(path = "book", produces = MediaType.APPLICATION_JSON_VALUE)
+	public CollectionModel<Book> getAllBooks() {
+		List<Book> books = bookService.getAllBooks();
+		for(Book book: books) {
+			Link link=
+					linkTo(methodOn(BookRestController.class).getBookById(book.getId()))
+					.withSelfRel();
+			book.add(link);
+		}
+		return CollectionModel.of(books);
+	}
+
+
+
+@GetMapping(path = "/book2/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+	public EntityModel<Book> getBookById2(@PathVariable(name = "id") int id) {
+		Link link=
+				linkTo(methodOn(BookRestController.class).getBookById2(id))
+				.withSelfRel();
+		
+		Book book = bookService.getBookById(id);
+		book.add(link);
+		
+		return EntityModel.of(book);
+	}
+
+
+
+
+ 	9. Swagger Documentation
+	~~~~~~~~~~~~~~~~~~~~~
+
+	=> Swagger is almost equivalent to SOAP formate, used for documentation of REST api
+	=> how to Configuring Auto Generation of Swagger Documentation
+
+	step 1:
+	------
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger2</artifactId>
+      <version>2.4.0</version>
+    </dependency>
+
+    <dependency>
+      <groupId>io.springfox</groupId>
+      <artifactId>springfox-swagger-ui</artifactId>
+      <version>2.4.0</version>
+    </dependency>
+
+
+
+basic config:
+---------------
+
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+	public Docket api() {
+	    return new Docket(DocumentationType.SWAGGER_2);
+	}
+}
+
+
+http://localhost:8080/swagger-ui.html
+
+
+
+
+
+basic config: with basic customization
+------------------------------------------
+
+import java.util.Arrays;
+import java.util.HashSet;
+import java.util.Set;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import springfox.documentation.service.ApiInfo;
+import springfox.documentation.service.Contact;
+import springfox.documentation.spi.DocumentationType;
+import springfox.documentation.spring.web.plugins.Docket;
+import springfox.documentation.swagger2.annotations.EnableSwagger2;
+
+@Configuration
+@EnableSwagger2
+public class SwaggerConfig {
+
+	public static final Contact DEFAULT_CONTACT = new Contact("rajeev gupta",
+			"http://abc.com", "rgupta.mtech@gmail.com");
+
+	public static final ApiInfo DEFAULT_API_INFO = new ApiInfo(
+			"Awesome API Title", "Awesome API Description", "1.0", "urn:tos",
+			DEFAULT_CONTACT, "Apache 2.0",
+			"http://www.apache.org/licenses/LICENSE-2.0");
+
+	private static final Set<String> DEFAULT_PRODUCES_AND_CONSUMES = new HashSet<String>(
+			Arrays.asList("application/json", "application/xml"));
+
+	@Bean
+	public Docket api() {
+		return new Docket(DocumentationType.SWAGGER_2)
+				.apiInfo(DEFAULT_API_INFO)
+				.produces(DEFAULT_PRODUCES_AND_CONSUMES)
+				.consumes(DEFAULT_PRODUCES_AND_CONSUMES);
+	}
+}
+
+
+
+=> Customization of swagger doc:
+--------------------------------
+	=> how to tell about validation of rest api?
+		eg: data can not be future
+
+	=> annotate pojo with more annotations
+
+@ApiModel(description="information about book")
+public class Book {
+	private int id;
+	private String isbn;
+	
+	@ApiModelProperty(notes="should be min 4 char")
+	
+
+
+
+import io.swagger.annotations.Contact;
+import io.swagger.annotations.ExternalDocs;
+import io.swagger.annotations.Info;
+import io.swagger.annotations.License;
+import io.swagger.annotations.SwaggerDefinition;
+
+@SwaggerDefinition(
+        info = @Info(
+                description = "Awesome Resources",
+                version = "V12.0.12",
+                title = "Awesome Resource API",
+                contact = @Contact(
+                   name = "rajeev gupta", 
+                   email = "rgupta.mtech@gmail.com", 
+                   url = "http://abc.com"
+                ),
+                license = @License(
+                   name = "Apache 2.0", 
+                   url = "http://www.apache.org/licenses/LICENSE-2.0"
+                )
+        ),
+        consumes = {"application/json", "application/xml"},
+        produces = {"application/json", "application/xml"},
+        schemes = {SwaggerDefinition.Scheme.HTTP, SwaggerDefinition.Scheme.HTTPS},
+        externalDocs = @ExternalDocs(value = "Read This For Sure", url = "http://abc.com")
+)
+public interface UserApiDocumentationConfig {
+
+}
+
+
+
+
+@ApiModel(description="All details about the user. ")
+public class User {
+
+  private Integer id;
+
+  @Size(min=2, message="Name should have atleast 2 characters")
+  @ApiModelProperty(notes="Name should have atleast 2 characters")
+  private String name;
+
+  @Past
+  @ApiModelProperty(notes="Birth date should be in the past")
+  private Date birthDate;
+
+
+
+
+	Step 10: Monitoring APIs with Spring Boot Actuator
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	=> Spring Boot Actuator auto-configures all enabled endpoints to be exposed over HTTP. 
+	=> The default convention is to use the id of the endpoint with a prefix of /actuator as the URL path. 
+		For example, health is exposed as /actuator/health.
+
+	Customizing the Management Endpoint Paths
+	----------------------------------------
+			management.endpoints.web.base-path=/manage
+
+		<dependency>
+			<groupId>org.springframework.data</groupId>
+			<artifactId>spring-data-rest-hal-browser</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
+	=> Security issues
+	management.security.enabled=false
+
+
+
+
+	Step 11: Implementing some field Filtering for RESTful Service
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+	What is i want to filter out some information from rest response
+
+
+	Eg: I want to ignore field2? use annotation @JsonIgnore
+
+	//@JsonIgnoreProperties(value={"field1","field2"})
+	public class SomeBean {
+		private String field1;
+
+		@JsonIgnore
+		private String field2;
+		private String field3;
+	}
+
+
+	@RestController
+	public class FilteringController {
+
+		@RequestMapping("/filterdemo")
+		public SomeBean getBean(){
+			return new SomeBean("value 1", "value 2", "value 3");
+		}
+
+       		@RequestMapping("/filterdemo-list")
+		public List<SomeBean> getBeanList(){
+		
+			List<SomeBean> beans=Arrays.asList(new SomeBean("value 1", "value 2", "value 3"),
+				new SomeBean("value 1", "value 2", "value 3"));
+			return beans ;
+		}
+	}
+
+
+
+
+
+	Step 12: Versioning RESTful Services 
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+ 	Versioning?
+ 		-Media type versioning ( aka "content negotiation" or " accept header")- Github
+ 		-Custome headers versioning- Microsoft
+ 		-URI versioning -Twitter
+ 		-Parameter versioning -Amazon
+
+ 		-Factors effect decision
+  		-url pollution
+ 		- misuse of http headers
+  		- caching
+  		- can we execute teh request on browser?
+  		- api doc
+ 		- No perfect sol
+
+
+
+Consider I have two version of person api over the time:
+
+public class PersonV1 {
+  private String name;
+
+  public PersonV1() {
+    super();
+  }
+ // ....
+}
+
+public class PersonV2 {
+  private Name name;
+	//........
+}
+
+public class Name {
+  private String firstName;
+  private String lastName;
+ //.......
+
+}
+
+ How to handle this?
+
+
+@RestController
+public class PersonVersioningController {
+
+  @GetMapping("v1/person")
+  public PersonV1 personV1() {
+    return new PersonV1("Bob Charlie");
+  }
+
+  @GetMapping("v2/person")
+  public PersonV2 personV2() {
+    return new PersonV2(new Name("Bob", "Charlie"));
+  }
+
+  @GetMapping(value = "/person/param", params = "version=1")
+  public PersonV1 paramV1() {
+    return new PersonV1("Bob Charlie");
+  }
+
+  @GetMapping(value = "/person/param", params = "version=2")
+  public PersonV2 paramV2() {
+    return new PersonV2(new Name("Bob", "Charlie"));
+  }
+
+  @GetMapping(value = "/person/header", headers = "X-API-VERSION=1")
+  public PersonV1 headerV1() {
+    return new PersonV1("Bob Charlie");
+  }
+
+  @GetMapping(value = "/person/header", headers = "X-API-VERSION=2")
+  public PersonV2 headerV2() {
+    return new PersonV2(new Name("Bob", "Charlie"));
+  }
+
+  @GetMapping(value = "/person/produces", produces = "application/vnd.company.app-v1+json")
+  public PersonV1 producesV1() {
+    return new PersonV1("Bob Charlie");
+  }
+
+  @GetMapping(value = "/person/produces", produces = "application/vnd.company.app-v2+json")
+  public PersonV2 producesV2() {
+    return new PersonV2(new Name("Bob", "Charlie"));
+  }
+
+}
+
+
+
+
+
+	Step 12: Enable cacheing
+	~~~~~~~~~~~~~~~~~~~~~~~~
+
+	step 1: add @EnableCaching to spring boot strap class...
+	step 2: put concurrentcachemanager to application ( latter will use production cache system)
+
+		@Transactional
+		@SpringBootApplication
+		@EnableCaching
+		public class Application {
+		
+			public static void main(String[] args) throws Exception{
+				SpringApplication.run(Application.class, args);
+			}
+			
+			@Bean
+			public CacheManager cacheManager(){
+				// ctr accept array of string, tell cache manages by cache manager
+				ConcurrentMapCacheManager cacheManager=new ConcurrentMapCacheManager("books");
+				return cacheManager;
+				
+			}
+		}
+
+
+	step 3:apply @Cacheable annotation to service layer
+
+		@Service
+		@Transactional(propagation=Propagation.SUPPORTS,readOnly=true)
+		public class BookServiceImp2 implements BookService{
+		
+			@Autowired
+			private BookRepo bookRepo;
+			
+			@Override
+			public List<Book> getAllBooks() {
+				return bookRepo.findAll();
+			}
+		
+			@Cacheable(value="books",key="#bookId" )
+			@Override
+			public Book getBookById(int bookId) {
+				return bookRepo.getOne(bookId);
+			}
+		
+			@CachePut(value="books", key="#result.id")
+			@Transactional(propagation=Propagation.REQUIRED, readOnly=false)
+			@Override
+			public Book addBook(Book book) {
+				return bookRepo.save(book);
+			}
+		
+			@CachePut(value="books", key="#result.id")
+			@Transactional(propagation=Propagation.REQUIRED, readOnly=false)
+			@Override
+			public Book updateBook(Book book) {
+				return bookRepo.save(book);
+			}
+		
+			@CacheEvict(value="books", key="#id")
+			@Transactional(propagation = Propagation.REQUIRED, readOnly = false, 
+					rollbackFor = BookNotFoundException.class)
+			@Override
+			public Book removeBook(int bookId) throws BookNotFoundException {
+				Book book = bookRepo.getOne(bookId);
+				if(book==null)
+					throw new BookNotFoundException();
+				else
+				bookRepo.delete(bookId);
+				return book;
+			}
+		
+			@CacheEvict(value="books", allEntries=true)
+			
+			@Override
+			public void evictCache() {
+				// TODO Auto-generated method stub
+				
+			}
+		}
+
+
+
+
+Configuration GuavaCacheManager cache manager:
+--------------------------------------------------
+
+	step 1: put dependencies
+
+	<properties>
+		..........
+		<guava.version>18.0</guava.version>
+	</properties>
+
+	<!-- Dependencies for GuavaCacheManager -->
+		<dependency>
+			<groupId>org.springframework</groupId>
+			<artifactId>spring-context-support</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>com.google.guava</groupId>
+			<artifactId>guava</artifactId>
+			<version>${guava.version}</version>
+		</dependency>
+
+
+
+	step 2: change bootstrap class
+
+	@Bean
+	public CacheManager cacheManager(){
+		// ctr accept array of string, tell cache manages by cache manager
+		GuavaCacheManager cacheManager=new GuavaCacheManager("books");
+		return cacheManager;
+		
+	}
+
+
+
+
+
+	Step 13: schedule processes
+	~~~~~~~~~~~~~~~~~~~~~~~~~~~
+	Note:
+	The simple rules that we need to follow to annotate a method with @Scheduled are:
+
+			a method should have the void return type
+			a method should not accept any parameters
+
+	step 1: put @EnableScheduling on bootstrap class
+
+	step 2: create an component with @Scheduled annotation
+
+		@Component
+		public class ScheduledJob {
+			private Logger logger = LoggerFactory.getLogger(this.getClass());
+		
+			@Autowired
+			private BookService service;
+		
+			@Scheduled(cron = "0,30 * * * * *")
+			public void cronJob() {
+				logger.info("> cronJob");
+		
+				// Add scheduled logic here
+		
+				Collection<Book> books = service.getAllBooks();
+				logger.info("There are {} books in the data store.", books.size());
+		
+				logger.info("< cronJob");
+			}
+		
+			// after application startup delay of 5 sec, schedule to run each after 15
+			// sec.
+			@Scheduled(initialDelay = 5000, fixedRate = 15000)
+			public void fixedRateJob() {
+				logger.info("> fixedRateJob");
+		
+				// Add scheduled logic here
+		
+				Collection<Book> greetings = service.getAllBooks();
+				logger.info("There are {} books in the data store.", greetings.size());
+		
+				logger.info("< fixedRateJob");
+			}
+		
+		}
+
+
+ref:
+https://www.baeldung.com/spring-scheduled-tasks
+
+
+
+=============================
+web application with boot
+=============================
+
+We need to put dependency:
+
+		<dependency>
+			<groupId>org.apache.tomcat.embed</groupId>
+			<artifactId>tomcat-embed-jasper</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>javax.servlet</groupId>
+			<artifactId>jstl</artifactId>
+		</dependency>
+
+
+spring.mvc.view.prefix:/WEB-INF/views/
+spring.mvc.view.suffix:.jsp
+
+
+@Controller
+public class TestController {
+
+	@RequestMapping("/welcome.html")
+	public ModelAndView firstPage() {
+		return new ModelAndView("welcome");
+	}
+
+}
+
+put jsp in /bootapp/src/main/webapp/WEB-INF/views
+
+https://david-kerwick.github.io/2018-01-17-dealing-with-java-8-localdate-in-jsp-s/
+
+
+Converting jar to war and deploy over tomcat:
+---------------------------------------------------
+https://www.baeldung.com/spring-boot-war-tomcat-deploy
+
+
+
+
+
+Example application:
+----------------
+
+productId
+productName
+productPrice
+productDiscount
+productCategory
+expiryDate
+productQuantity
+
+
+
+
+Query by example executor:
+------------------------
+This is interface that allow query execution by example
+
+findAll(Example<S> example)
+
+What is this example?
+	example need probe to get created, and this prob means instance of domain class
+Query by example is a concept or apporach where we create query based on example given
+
+QueryByExampleExecutor will take example object and it will 
+generate query based on that using example matcher
+
+{
+	"title":"java"
+}
+
+Hello world:
+------------
+@GetMapping(path = "byexample", produces = MediaType.APPLICATION_JSON_VALUE)
+	public List<Book> getAllBooksByExample(@RequestBody Book book) {
+		List<Book> books = bookService.getAllBooksByExample(book);
+		return books;
+	}
+
+
+service:
+-------
+public List<Book> getAllBooksByExample(Book book);
+
+service implementation:
+--------------------
+
+public List<Book> getAllBooksByExample(Book book) {
+		// pass prob to example
+		Example<Book> e = Example.of(book);
+
+		return bookRepo.findAll(e);
+}
+
+
+Example:
+// pass prob to example
+		ExampleMatcher exampleMatcher=ExampleMatcher.matchingAny().withIgnoreCase()
+				.withMatcher("title",GenericPropertyMatcher.of(StringMatcher.STARTING));
+		Example<Book> e = Example.of(book, exampleMatcher);
+
+		return bookRepo.findAll(e);
+
+
+
+https://www.baeldung.com/spring-data-query-by-example
+
+
+
+
+Spring boot jpa:
+-------------------
+
+How to make two unrelated pojo connected ?
+------------------------------------
+
+public class StudentEntity {
+    private int rollNumber;
+    private String name;
+    private Integer departmentId;
+    private Integer age;
+    private String email;
+}
+
+
+public class DepartmentEntity {
+    private int departmentId;
+    private String departName;
+}
+
+
+     Query query = em.createQuery("Select s.rollNumber,s.name,d.departName,s.age,s.email from StudentEntity s 
+           inner join DepartmentEntity d on s.departmentId=d.departmentId");
+
+
+ref:
+-----
+https://medium.com/@techkarmo/spring-data-jpa-join-with-unrelated-entities-with-help-of-jpql-in-spring-boot-application-c358e11512bd
+      
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+How to Configure & Use SessionFactory Bean with spring boot
+-------------------------------------------------------
+https://stackoverflow.com/questions/55276436/how-to-handle-hibernate-sessionfactory-in-spring-boot
+https://stackoverflow.com/questions/50317045/getting-a-sessionfactory-in-spring-boot-2-0-hibernate-5
+
+Add the following to the Main Application class or Configuration class. 
+view plaincopy to clipboardprint?
+
+@Bean  
+public SessionFactory sessionFactory(HibernateEntityManagerFactory hemf){  
+    return hemf.getSessionFactory();  
+}  
+
+Add the following line in application.properties 
+
+spring.jpa.properties.hibernate.current_session_context_class=
+org.springframework.orm.hibernate4.SpringSessionContext
+
+Now you can use the Session Factory in your code as follows.
+------------------------------------------------------- 
+
+class Sample {  
+   @Autowired  
+   SessionFactory sessionFactory;  
+  
+   // use the session factory as   
+   // sessionFactory.getCurrentSession(); to get the current session  
+   //  
+}  
+
+
+
+
+
+Step 14: Spring testing
+~~~~~~~~~~~~~~~~~~~~~~~
+
+
+
+TDD approach : 
+first write the test cases and then write the code!
+	70 + 30 code
+
+
+
+	step 1: startup dependency for test dependency
+	 (alread added, bundle junit, hemcrest, mokito all in one!)
+
+	step 2: create package in test branch com.books.test
+
+
+	@RunWith(SpringJUnit4ClassRunner.class)
+	//@SpringApplicationConfiguration facilate
+	 start up of spring boot app for test runner, supply the name of bootstrap class
+	
+	@SpringApplicationConfiguration(classes=Application.class)
+	public class AbstractTest {
+	
+	}
+
+
+	step 3: writing test to test service layer:
+
+		
+		@Transactional// all chananges roll back after test finished.
+		public class BookServiceTest extends AbstractTest{
+		
+			@Autowired
+			private BookService service;
+			
+			@Before
+			public void setUp(){
+				service.evictCache();// clear cache
+			}
+			
+			
+			@Test
+			public void testGetAllBooks(){
+				Collection<Book> list=service.getAllBooks();
+				Assert.assertNotNull("failed expected not null" , list);
+				Assert.assertEquals("failed expected size=", 2, list.size());
+			}
+			@After
+			public void tearDown(){
+				//
+			}
+			
+			
+	}
+
+
+
+
+
+
+Some more code samples:
+======================
+Spring boot:
+--------------
+
+Rest hello:
+------------
+
+
+class Greet {
+	private String message;
+public Greet() {}
+
+	public Greet(String message) {
+		this.message = message;
+	}
+
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+ 
+}
+
+
+@RestController
+class GreetingController{
+	@RequestMapping("/")
+	Greet greet(){
+		return new Greet("Hello World!");
+	}
+}
+
+@SpringBootApplication
+public class Application {
+
+	public static void main(String[] args) {
+		SpringApplication.run(Application.class, args);
+	}
+}
+
+
+
+Spring rest client
+------------------
+RestTemplate restTemplate = new RestTemplate();
+Greet greet = restTemplate.getForObject("http://localhost:8080", Greet.class);
+
+
+
+Spring rest basic security hello world
+------------------------------------------
+@EnableGlobalMethodSecurity
+
+security.user.name=guest
+security.user.password=guest123
+
+
+
+
+Spring rest client with security
+--------------------------------
+String plainCreds = "guest:guest123";
+HttpHeaders headers = new HttpHeaders();
+headers.add("Authorization", "Basic " + new String(Base64.encode(plainCreds.getBytes())));
+HttpEntity<String> request = new HttpEntity<String>(headers);
+RestTemplate restTemplate = new RestTemplate();
+		
+ResponseEntity<Greet> response = restTemplate.exchange("http://localhost:8080", HttpMethod.GET, request, Greet.class);
+Assert.assertEquals("Hello World!", response.getBody().getMessage());
+
+
+
+
+
+
+
+Spring boot hateoas
+----------------------
+
+class Greet extends ResourceSupport{
+	private String message;
+	
+	public Greet() {
+		 
+	}
+	
+	public Greet(String message) {
+        this.message = message;
+    }
+	
+	public String getMessage() {
+		return message;
+	}
+
+	public void setMessage(String message) {
+		this.message = message;
+	}
+	
+	public String toString(){
+		return message;
+	}
+
+	 
+	
+}
+
+@RestController
+class GreetingController{
+
+	@RequestMapping("/greet")
+	Greet greet(){
+		return new Greet("Hello World!");
+	}
+	
+    @RequestMapping("/greeting")
+    @ResponseBody
+    public HttpEntity<Greet> greeting(@RequestParam(value = "name", required = false, 	   defaultValue = "HATEOAS") String name) {
+        Greet greet = new Greet("Hello " + name);
+        greet.add(linkTo(methodOn(GreetingController.class).greeting(name)).withSelfRel());
+        return new ResponseEntity<Greet>(greet, HttpStatus.OK);
+    }
+    
+}
+
+
+@SpringBootApplication
+public class Application {
+
+    public static void main(String[] args) {
+        SpringApplication.run(Application.class, args);
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Quick Tip : HATEOAS Recent Changes
+VERSION UPDATES FOR NEXT LECTURE
+
+There are a few modifications of HATEOAS in the latest release of Spring HATEOAS 1.0.0:
+
+One of these should work
+
+Option 1 : Spring Boot Release >= 2.2.0
+import org.springframework.hateoas.EntityModel;
+ 
+import org.springframework.hateoas.server.mvc.ControllerLinkBuilder;
+ 
+import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
+ 
+---------
+ 
+@GetMapping("/users/{id}")
+ 
+public EntityModel<User> retrieveUser(@PathVariable int id) {
+ 
+	User user = service.findOne(id);
+ 
+	if (user== null)
+ 
+		throw new UserNotFoundException("id-" + id);
+ 
+	EntityModel<User> model = new EntityModel<>(user);
+ 
+	WebMvcLinkBuilder linkTo = WebMvcLinkBuilder.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
+ 
+	model.add(linkTo.withRel("all-users"));
+ 
+	return model;
+ 
+}
+Option 2: Older versions
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
+import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
+import org.springframework.hateoas.Resource;
+import org.springframework.hateoas.mvc.ControllerLinkBuilder;
+ 
+Resource<User> resource = new Resource<User>(user);
+ControllerLinkBuilder linkTo = linkTo(methodOn(this.getClass()).retrieveAllUsers());
+resource.add(linkTo.withRel("all-users"));
+return resource;
+
+
+
+imp links:
+-------------------
+https://www.mkyong.com/spring-boot/spring-boot-spring-data-jpa-java-8-date-and-time-jsr310/
+http://stackoverflow.com/questions/24351581/how-does-the-enableautoconfiguration-spring-annotation-work
+
+how to convert boot project to war
+http://docs.spring.io/spring-boot/docs/current/reference/htmlsingle/#howto-create-a-deployable-war-file
+
+how to logging 
+http://docs.spring.io/spring-boot/docs/current/reference/html/howto-logging.html
+
+great way to learn spring boot
+https://springframework.guru/using-log4j-2-spring-boot/
+
+https://semaphoreci.com/community/tutorials/testing-rest-endpoints-using-rest-assured
+https://github.com/basdijkstra/workshops/tree/master/rest-assured
+
+mkyoung for basic understanding of cacheing
+https://www.mkyong.com/spring/spring-caching-and-ehcache-example/
+
+http://howtodoinjava.com/spring/spring-restful/spring-restful-client-resttemplate-example/

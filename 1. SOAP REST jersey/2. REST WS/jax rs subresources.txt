@@ -1,0 +1,244 @@
+Example sub resources
+========================
+
+public class Author {
+	private int id;
+	private String authorName;
+	private String authorEmail;
+	private String authorPhone;
+	private Date authorDob;
+}
+
+
+public interface AuthorService {
+	public List<Author> getAllAuthors();
+	public Author getAuthorById(int authorId);
+	public Author addAuthor(Author author);
+	public Author updateAuthor(Author author);
+	public Author removeAuthor(int authorId);
+}
+
+
+public class AuthorServiceImp implements AuthorService {
+
+	private static Map<Integer, Author> authors = new HashMap<Integer, Author>();
+	static {
+		authors.put(1, new Author(121, "raja", "raja@gmail.com", "43434344",
+				new Date()));
+		authors.put(1, new Author(11, "amit", "amit@gmail.com", "40434344",
+				new Date()));
+	}
+
+	@Override
+	public List<Author> getAllAuthors() {
+		return new ArrayList<Author>(authors.values());
+	}
+
+	@Override
+	public Author getAuthorById(int authorId) {
+		return authors.get(authorId);
+	}
+
+	@Override
+	public Author addAuthor(Author author) {
+		author.setId(authors.size()+1);
+		authors.put(author.getId(), author);
+		return author;
+	}
+
+	@Override
+	public Author updateAuthor(Author author) {
+		if(author.getId()<=0)
+			return null;
+		else
+			authors.put(author.getId(), author);
+		return author;
+	}
+
+	@Override
+	public Author removeAuthor(int authorId) {
+		return authors.remove(authorId);
+	}
+}
+
+
+@Path("/")
+public class AuthorResources {
+	private AuthorService dao=new AuthorServiceImp();
+
+	//http://localhost:8080/app2/api/books/1/authors
+	@GET
+	public String test(){
+		return "test";
+	}
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Author> getAllAuthors(){
+		return dao.getAllAuthors();
+	}
+	
+	@GET
+	@Path("/{authorId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Author getAuthorById(@PathParam("authorId") int authorId){
+		return dao.getAuthorById(authorId);
+	}
+	
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Author addAuthor(Author author){
+		return dao.addAuthor(author);
+		
+	}
+	
+	@PUT
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/{authorId}")
+	public Author updateAuthor(@PathParam("authorId") int authorId, Author author){
+		author.setId(authorId);
+		dao.updateAuthor(author);
+		return author;
+	}
+	
+	@DELETE
+	@Path("/{authorId}")
+	public void delete(@PathParam("authorId") int authorId){
+		dao.removeAuthor(authorId);
+	}
+	
+}
+
+
+
+
+
+
+
+public class Book {
+	private int id;
+	private String isbn;
+	private String title;
+	private double price;
+	private List<Author> authors = new ArrayList<Author>();
+
+
+
+public interface BookService {
+	public List<Book> getAllBooks();
+	public Book getBookById(int bookId);
+	public Book addBook(Book book);
+	public Book updateBook(Book book);
+	public Book removeBook(int bookId);
+}
+
+
+
+@Service
+public class BookServiceImp implements BookService {
+
+	private static Map<Integer, Book> books = new HashMap<Integer, Book>();
+	static {
+		books.put(1, new Book(121, "ABC123", "head first", 500.00));
+		books.put(1, new Book(11, "ABU123", "head last",  400.00));
+	}
+
+	@Override
+	public List<Book> getAllBooks() {
+		return new ArrayList<Book>(books.values());
+	}
+
+	@Override
+	public Book getBookById(int bookId) {
+		return books.get(bookId);
+	}
+
+	@Override
+	public Book addBook(Book book) {
+		book.setId(books.size() + 1);
+		books.put(book.getId(), book);
+		return book;
+	}
+
+	@Override
+	public Book updateBook(Book book) {
+		if (book.getId() <= 0)
+			return null;
+		else
+			books.put(book.getId(), book);
+		return book;
+	}
+
+	@Override
+	public Book removeBook(int bookId) {
+		return books.remove(bookId);
+	}
+}
+
+
+@Path("/books")
+public class BookResources {
+	private BookService dao=new BookServiceImp();
+
+	@GET
+	@Produces(MediaType.APPLICATION_JSON)
+	public List<Book> getAllBooks(){
+		return dao.getAllBooks();
+	}
+	
+	@GET
+	@Path("/{bookId}")
+	@Produces(MediaType.APPLICATION_JSON)
+	public Book getBookById(@PathParam("bookId") int bookId){
+		return dao.getBookById(bookId);
+	}
+	
+	@POST
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	public Book addBook(Book book){
+		return dao.addBook(book);
+		
+	}
+	
+	@PUT
+	@Produces(MediaType.APPLICATION_JSON)
+	@Consumes(MediaType.APPLICATION_JSON)
+	@Path("/{bookId}")
+	public Book updateBook(@PathParam("bookId") int bookId, Book book){
+		book.setId(bookId);
+		dao.updateBook(book);
+		return book;
+	}
+	
+	@DELETE
+	@Path("/{bookId}")
+	public void delete(@PathParam("bookId") int bookId){
+		dao.removeBook(bookId);
+	}
+	
+	// books/1/authors
+	@Path("/{bookId}/authors")
+	public AuthorResources getAuthorResource(){
+		return new AuthorResources();
+	}
+	
+}
+
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.ws.rs.ApplicationPath;
+import javax.ws.rs.core.Application;
+
+@ApplicationPath("/api")
+public class ApplicationConfig extends Application {
+
+    @Override
+    public Map<String, Object> getProperties() {
+        Map<String, Object> properties = new HashMap<String, Object>();
+        properties.put("jersey.config.server.provider.packages", "com.memorynotfound.rs");
+        return properties;
+    }
+}

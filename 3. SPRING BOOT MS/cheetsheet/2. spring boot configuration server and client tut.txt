@@ -1,0 +1,363 @@
+spring boot microservice configuration:
+---------------------------------
+=> unserstanding spring boot configuration
+=> configure features in spring boot
+	value , configprops, Actuator, spring profile, enviornment
+=> spring cloud config server
+=> dynamic configuration
+=> best practices and patterns
+
+=> config features in sprng boot
+	value 
+	configprops
+	Actuator
+	spring profiles
+	environment
+=> spring cloud config server
+
+=> Dynamic configuration
+
+spring boot ms configuration goals
+----------------------------
+	=> externalized
+		property file should be externalized for loose coupling
+	=> environment specfic
+		test, prod, dev, default
+	=> consistent
+		In microservice we have many spring boot project that must have same configuration parameters, we 			should manage them centerally (using git) rather than locally
+	=> version histroy
+	    spring clould provide provision for version history using git
+	=> real time management
+
+
+
+Spring boot profile hello world
+----------------------------
+Dont hard code!
+
+
+
+
+
+application.properties
+-----------------------
+
+
+hello.message=jug delhi
+#spring.profiles.active=dev
+
+
+application-dev.properties
+
+hello.message=jug delhi dev
+
+
+
+application.properties
+
+hello.message-test=jug delhi test
+
+
+
+@RestController
+public class Hello {
+
+	@Value("${hello.message}")
+	private String message;
+	
+	@GetMapping("/")
+	public String sayHello() {
+		return "hello  "+ message;
+	}
+}
+
+
+Running from cmd:
+----------------
+java -jar demo-0.0.1-SNAPSHOT.jar --hello.message="hello to spring boot channed message"
+
+
+running on differnt port:
+-------------------------
+java -jar  jpa_demo2-0.0.1-SNAPSHOT.jar --server.port=8050
+
+
+
+Providing default value with @Value annotation , so that config not fail at run time:
+-----------------------------------------------------
+
+@RestController
+public class Hello {
+
+	@Value("${hello.message: default value}")
+	private String message;
+	
+	@GetMapping("/")
+	public String sayHello() {
+		return "hello  "+ message;
+	}
+}
+
+
+What if properties is a list/map?
+---------------------------
+Ex:
+my.list.values=java,python,web
+
+
+@Value("${my.list.values}")
+private List<String> values;
+
+
+
+my.todo={java:"cloud",python:"AI"}
+
+//EL 
+@Value("#{${my.todo}}")
+private Map<String, String> toDo;
+
+
+
+
+@ConfigurationProperty annotation:
+----------------------------------
+	=> annotation for pulling for group of configuration
+
+
+
+Consider properties:
+------------------
+spring.datasource.url=jdbc:mysql://localhost:3306/kr_jdbc?useSSL=false
+spring.datasource.username=root
+spring.datasource.password=root
+
+
+
+@Configuration
+@ConfigurationProperties("spring.datasource")
+public class DbConfig {
+	private String url;
+	private String username;
+	private String password;
+	public String getUrl() {
+		return url;
+	}
+	public void setUrl(String url) {
+		this.url = url;
+	}
+	public String getUsername() {
+		return username;
+	}
+	public void setUsername(String username) {
+		this.username = username;
+	}
+	public String getPassword() {
+		return password;
+	}
+	public void setPassword(String password) {
+		this.password = password;
+	}
+	
+	
+}
+
+Now testing it:
+--------------
+
+@RestController
+public class Hello {
+	
+	@Autowired
+	private DbConfig dbConfig;
+	
+}
+
+
+
+Using actuator:
+---------------
+
+Spring Boot Actuator is used to gather metrics using REST endpoints.
+1. What is Actuator
+2. What is the use of Actuator
+3. How to Configure Actuator
+4.  Actuator Metrics
+5. All REST Endpoints exposed by Actuator
+6.  example on all end points like health, beans, cace, configParams, httptrace, mappings, env ...etc
+
+Enable actuator:
+
+management.endpoints.web.exposure.include=*
+
+
+http://localhost:8080/actuator
+
+https://www.javadevjournal.com/spring-boot/spring-boot-actuator/
+https://www.javadevjournal.com/spring-boot/spring-boot-actuator-custom-endpoint/
+
+Custom actuator end point:
+------------------------
+
+@Component
+public class CustomEndPoint implements Endpoint<String>{
+    @Override
+    public String getId() {
+        return "youtube";
+    }
+
+    @Override
+    public boolean isEnabled() {
+        return true;
+    }
+
+    @Override
+    public boolean isSensitive() {
+        return false;
+    }
+
+    @Override
+    public String invoke() {
+        return "Hello Youtube";
+    }
+}
+
+
+
+
+
+Using enviornment to get profile information:
+------------------------------------------
+
+private Environment env;
+	
+
+
+Why spring cloud config server?
+-------------------------------
+	=> in microservice model we have to configure multiple services
+	=> externilization and env specific and real time mgt
+
+
+	M1	---------
+
+	M2	-------		Configuration service		-- git : local
+	
+	M3	-------
+
+
+
+Spring config server + local git configuration:
+---------------------------------------
+
+dep:config server, actuator
+step 1: create local git config
+
+application.properties
+spring.datasource.url=jdbc:mysql://localhost:3306/kr_jdbc?useSSL=false
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+commit 
+
+
+step 2: configure config server:
+-------------------------
+
+spring.cloud.config.server.git.uri=/home/raj/Desktop/config
+server.port=8888
+
+
+
+@EnableConfigServer
+@SpringBootApplication
+public class ConfigServerApplication {
+}
+
+
+step 3: check endpoint
+-----------------------
+http://localhost:8888/application/default
+
+
+
+
+Configure config client:
+------------------------
+dependencies: web, config client, actuator
+
+
+
+configuration client application.properties
+-----------------------------------------
+management.endpoints.web.exposure.include=*
+spring.cloud.config.uri=http://localhost:8888
+
+
+
+@RestController
+public class Hello {
+
+	@Value("${spring.datasource.url: default value}")
+	private String url;
+	
+	@GetMapping("/")
+	public String sayHello() {
+		return url;
+	}
+}
+
+
+
+Refreshing properties at run time:
+---------------------------------
+	=> we need to register refresh hook to the client
+	=> dont forget to enable managment endpoints in client
+
+Step 1:
+--------
+@RefreshScope
+@RestController
+public class Hello {
+
+	@Value("${spring.datasource.url: default value}")
+	private String url;
+	
+	@GetMapping("/")
+	public String sayHello() {
+		return url;
+	}
+}
+
+step 2: chnage configuration and commit
+
+step 3: in client application use refresh endpoint
+
+http://localhost:8080/actuator/refresh
+
+
+
+
+
+
+
+
+
+
+application.properties
+----------------------------
+server.servlet.context-path=/empapp
+server.port=8080
+
+spring.datasource.url=jdbc:mysql://localhost:3306/kr_jdbc?useSSL=false
+spring.datasource.username=root
+spring.datasource.password=root
+spring.datasource.driver-class-name=com.mysql.cj.jdbc.Driver
+
+spring.jpa.hibernate.ddl-auto=update
+logging.level.org.springframework.web: DEBUG
+logging.level.org.hibernate: ERROR
+spring.jpa.show-sql=true
+
+
+
