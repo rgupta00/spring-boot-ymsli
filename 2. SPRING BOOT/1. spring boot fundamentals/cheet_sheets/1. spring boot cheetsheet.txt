@@ -461,7 +461,7 @@ public class ClientAppConfiguration {
 		private Date timestamp;
 		  private String message;
 		  private String details;
-	
+	}
 		
 
 
@@ -485,7 +485,7 @@ public class ClientAppConfiguration {
 		private int id;
 		private String isbn;
 		@Size(min=2, message="title should have atleast 4 characters")
-
+	}
 
 	step 2: 
 	public ResponseEntity<Book> createBook(@Valid @RequestBody Book book) {
@@ -500,12 +500,34 @@ public class ClientAppConfiguration {
 		} 
 
 
+	https://stackoverflow.com/questions/33663801/how-do-i-customize-default-error-message-from-spring-valid-validation
+
+       @Override
+	protected ResponseEntity<Object> handleMethodArgumentNotValid(MethodArgumentNotValidException ex,
+			HttpHeaders headers, HttpStatus status, WebRequest request) {
+		//how to deal 
+		BindingResult bindingResult = ex.getBindingResult();
+		List<FieldError> fieldErrors = bindingResult.getFieldErrors();
+		//? expore some method inside this fieldErrors and then put
+		
+		StringBuilder builder=new StringBuilder("validation failed for : ");
+		
+		for(FieldError fe:fieldErrors ) {
+			builder.append(fe.getField()).append(" ,");
+			
+		}
+		
+		ErrorMessage errorMessage = new ErrorMessage(builder.toString(), 
+				"rg@gmail.com", new Date());
+		return new ResponseEntity<Object>(errorMessage, HttpStatus.BAD_REQUEST);
+	}
+
+
 
 
 
 	Step 8: hateoas
 	~~~~~~~~~~~~~~~
-
 	HATEOAS- Hypertext as the engine of Application state
 	Use link in the application state ( Response data)
 	
@@ -1058,7 +1080,7 @@ Configuration GuavaCacheManager cache manager:
 
 ref:
 https://www.baeldung.com/spring-scheduled-tasks
-
+https://www.tutorialspoint.com/unix_commands/crontab.htm
 
 
 =============================
@@ -1107,6 +1129,8 @@ https://www.baeldung.com/spring-boot-war-tomcat-deploy
 
 Example application:
 ----------------
+
+Product
 
 productId
 productName
@@ -1459,57 +1483,6 @@ public class Application {
 
 
 
-
-
-
-
-
-
-Quick Tip : HATEOAS Recent Changes
-VERSION UPDATES FOR NEXT LECTURE
-
-There are a few modifications of HATEOAS in the latest release of Spring HATEOAS 1.0.0:
-
-One of these should work
-
-Option 1 : Spring Boot Release >= 2.2.0
-import org.springframework.hateoas.EntityModel;
- 
-import org.springframework.hateoas.server.mvc.ControllerLinkBuilder;
- 
-import org.springframework.hateoas.server.mvc.WebMvcLinkBuilder;
- 
----------
- 
-@GetMapping("/users/{id}")
- 
-public EntityModel<User> retrieveUser(@PathVariable int id) {
- 
-	User user = service.findOne(id);
- 
-	if (user== null)
- 
-		throw new UserNotFoundException("id-" + id);
- 
-	EntityModel<User> model = new EntityModel<>(user);
- 
-	WebMvcLinkBuilder linkTo = WebMvcLinkBuilder.linkTo(ControllerLinkBuilder.methodOn(this.getClass()).retrieveAllUsers());
- 
-	model.add(linkTo.withRel("all-users"));
- 
-	return model;
- 
-}
-Option 2: Older versions
-import static org.springframework.hateoas.mvc.ControllerLinkBuilder.linkTo;
-import static org.springframework.hateoas.mvc.ControllerLinkBuilder.methodOn;
-import org.springframework.hateoas.Resource;
-import org.springframework.hateoas.mvc.ControllerLinkBuilder;
- 
-Resource<User> resource = new Resource<User>(user);
-ControllerLinkBuilder linkTo = linkTo(methodOn(this.getClass()).retrieveAllUsers());
-resource.add(linkTo.withRel("all-users"));
-return resource;
 
 
 

@@ -1,0 +1,24 @@
+
+class Customer{
+
+	List<Product> ...
+}
+
+class Product{
+
+	mgtDate
+}
+
+1. get json of all customers
+
+2. ....................products
+
+3. customername, pname, price
+
+4. get all customers whose ide passed
+{
+	"ide":[2,4]
+}
+
+5. get list of all products that has short expirty
+		6month

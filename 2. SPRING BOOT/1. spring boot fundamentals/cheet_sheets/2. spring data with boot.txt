@@ -601,7 +601,68 @@ Joins:
 
 one to one:
 -------------
-Employee <>-------- Parking
+Employee ------------<>-------- Parking
+
+
+
+
+Effect of auto gen strategy:
+----------------------------
+If IDENTITY:
+------------
+every table are independt in terms of serogative pk 
+
+em.persist(emp);
+
+If TABLE(Auto) in hib 5
+--------------
+every enitity serogative pk are generate with the help of a table
+
+pk_table:
+----------
+	val
+	2
+
+
+em.persist(emp);
+
+commit
+
+saved....
+Hibernate: insert into customer_table_jpa (address, dob, email, mobile, name, id) values (?, ?, ?, ?, ?, ?)
+commited....
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+@GeneratedValue(strategy = GenerationType.IDENTITY)
+	private int eid;
+
+
+
+
 
 POJO:
 ------
@@ -801,6 +862,9 @@ Initilizing data:
 Repositories:
 -------------
 
+dname ename salary
+
+
 @Repository
 public interface DepartmentRepo extends JpaRepository<Department, Integer>{
 	@Query("SELECT new com.demo.dto.DeptEmpResponse(d.dname, e.name, e.salary) FROM Department d INNER JOIN d.employees e")
@@ -837,7 +901,9 @@ public class EmployeeRequest {
 }
 
 
-
+{
+  "ids":  [1,5]
+}
 
 Exception:
 ---------
@@ -908,6 +974,11 @@ public class EmployeeRestController {
 
 Problem: recursion :
 ---------------------
+	one to one
+
+	one to many
+
+	many to many
 
 
 Solving Infinite Recursion using @JsonManagedReference and @JsonBackReference
